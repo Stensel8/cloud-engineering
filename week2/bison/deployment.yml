@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bison-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bison
+  template:
+    metadata:
+      labels:
+        app: bison
+    spec:
+      containers:
+      - name: bison
+        image: stensel8/bison:latest
+        ports:
+        - containerPort: 80

@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-saxion
+spec:
+  rules:
+  - host: "bison.mysaxion.nl"
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: bison-service
+            port:
+              number: 80
+  - host: "brightspace.mysaxion.nl"
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: brightspace-service
+            port:
+              number: 80
+              
