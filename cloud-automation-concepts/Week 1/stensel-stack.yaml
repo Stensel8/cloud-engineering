@@ -1,0 +1,24 @@
+Description: my first VPC {10.0.0.0/16}.
+Resources:
+  MyfirstVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: myfirstVPC
+        - Key: Omgeving
+          Value: Productie
+
+# --- CloudFormation Commands ---
+# Aanmaken:
+#   aws cloudformation create-stack --stack-name stensel-stack --template-body file://stensel-stack.yaml --region us-east-1
+#
+# Status controleren:
+#   aws cloudformation describe-stacks --stack-name stensel-stack --region us-east-1
+#
+# Bijwerken (na wijzigingen in dit bestand):
+#   aws cloudformation update-stack --stack-name stensel-stack --template-body file://stensel-stack.yaml --region us-east-1
+#
+# Verwijderen:
+#   aws cloudformation delete-stack --stack-name stensel-stack --region us-east-1
