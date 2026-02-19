@@ -1,26 +1,23 @@
-# Public Cloud Concepts
+# Spring 2026 — Cloud Engineering
 
-## Under Development
+> **Under Development** — Collaborative repository for the HBO specialisation *Cloud Engineering* (Spring 2026, Q3/Q4).
 
-This repository is **under development** and serves as a learning resource for an HBO (Higher Professional Education) school module on Public Cloud Concepts. This is part of a structured learning path I'm following during my studies.
+This repository is maintained by [Stensel8](https://github.com/Stensel8) and [Hintenhaus04](https://github.com/Hintenhaus04) and covers the shared modules of the Cloud Engineering specialisation.
 
-**Please note:** This is educational material and should not be considered production-ready. Do not rely on this for critical applications. The solutions, configurations, and implementations presented here are learning exercises and may contain simplifications, errors, or incomplete implementations.
+## Modules
 
-## About This Project
+| Module | EC | Quarter | Folder |
+|--------|-----|---------|--------|
+| Cloud Automation Concepts | 5 EC | Q3 | [cloud-automation-concepts/](cloud-automation-concepts/) |
+| Architecting the Cloud | 5 EC | Q3 | [architecting-the-cloud/](architecting-the-cloud/) |
+| Project Cloud Engineering | 15 EC | Q4 | *(to be added)* |
 
-This repository documents my progress through various cloud computing topics and modules covered in my HBO studies. As I progress through different subjects and weeks, I will be adding more content, examples, and configurations.
-
-## Learning Path Structure
-
-- **Week 1**: Container fundamentals and basic Kubernetes deployments
-- **Week 2**: Service management and ingress configurations
-
-More weeks will be added as the coursework progresses.
+> **Public Cloud Concepts** (5 EC, Q3) is a solo module and lives in its own repository: [Stensel8/public-cloud-concepts](https://github.com/Stensel8/public-cloud-concepts).
 
 ## Disclaimer
 
-This repository is a work in progress for educational purposes. The code, configurations, and documentation may change significantly as I advance through the curriculum. Please use this as a reference for learning, not as a production-ready template.
+This is a work in progress for educational purposes. Code, configurations, and documentation may change significantly as the course progresses.
 
 ---
 
-*Last Updated: February 2026*
+*Last updated: February 2026*
