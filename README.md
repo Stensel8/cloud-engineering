@@ -10,7 +10,6 @@ This repository is maintained by [Stensel8](https://github.com/Stensel8) and [Hi
 |--------|-----|---------|--------|
 | Cloud Automation Concepts | 5 EC | Q3 | [cloud-automation-concepts/](cloud-automation-concepts/) |
 | Architecting the Cloud | 5 EC | Q3 | [architecting-the-cloud/](architecting-the-cloud/) |
-| Project Cloud Engineering | 15 EC | Q4 | *(to be added)* |
 
 > **Public Cloud Concepts** (5 EC, Q3) is a solo module and lives in its own repository: [Stensel8/public-cloud-concepts](https://github.com/Stensel8/public-cloud-concepts).
 
