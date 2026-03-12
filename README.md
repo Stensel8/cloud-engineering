@@ -206,7 +206,7 @@ gpg --list-secret-keys --keyid-format=long
 ```powershell
 git config --global user.signingkey ABCD1234EF567890
 git config --global commit.gpgsign true
-git config --global gpg.program "C:/Program Files (x86)/GnuPG/bin/gpg.exe"
+git config --global gpg.program "C:/Program Files/GnuPG/bin/gpg.exe"
 ```
 
 </details>
