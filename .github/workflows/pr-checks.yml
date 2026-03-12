@@ -45,7 +45,7 @@ jobs:
     name: Markdown lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: DavidAnson/markdownlint-cli2-action@v19
         with:
           globs: "**/*.md"
@@ -138,3 +138,38 @@ jobs:
             echo "::error file=$f::Converteer naar AVIF voor het mergen"
           done <<< "$FILES"
           exit 1
+
+  update-checklist:
+    name: Auto-update PR checklist
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [pr-title, markdown, image-format]
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          RESULT_PR_TITLE:     ${{ needs.pr-title.result }}
+          RESULT_MARKDOWN:     ${{ needs.markdown.result }}
+          RESULT_IMAGE_FORMAT: ${{ needs.image-format.result }}
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+
+            let body = pr.body || '';
+
+            // ── Remove unchecked "Type wijziging" options ─────────────────────
+            body = body.replace(/^- \[ \] `\w+` —[^\n]*\n?/gm, '');
+
+            // ── Collapse leftover blank lines ─────────────────────────────────
+            body = body.replace(/\n{3,}/g, '\n\n');
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              body,
+            });
+
