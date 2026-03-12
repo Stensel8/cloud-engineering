@@ -164,7 +164,7 @@ Ga naar **GitHub → Settings → SSH and GPG keys → New GPG key** en plak de 
 ```bash
 git config --global user.signingkey ABCD1234EF567890
 git config --global commit.gpgsign true
-git config --global gpg.program gpg
+git config --global gpg.program "C:/Program Files/GnuPG/bin/gpg.exe"
 ```
 
 Voor Fish shell — voeg toe aan `~/.config/fish/config.fish`:
@@ -243,3 +243,4 @@ Dit is een lopend project voor educatieve doeleinden. Code, configuraties en doc
 ---
 
 *Laatst bijgewerkt: maart 2026*
+
