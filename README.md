@@ -1,16 +1,16 @@
-[![PR Checks](https://github.com/Stensel8/spring2026-cloud-engineering/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/Stensel8/spring2026-cloud-engineering/actions/workflows/pr-checks.yml)
-[![Dependabot Updates](https://github.com/Stensel8/spring2026-cloud-engineering/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Stensel8/spring2026-cloud-engineering/actions/workflows/dependabot/dependabot-updates)
+[![PR Checks](https://github.com/Stensel8/cloud-engineering/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/pr-checks.yml)
+[![Dependabot Updates](https://github.com/Stensel8/cloud-engineering/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/dependabot/dependabot-updates)
 
 > [!NOTE]
 > Deze repository wordt primair in het **Nederlands** bijgehouden.
 
 ---
 
-# Voorjaar 2026 — Cloud Engineering
+# Cloud Engineering
 
-Deze repository wordt bijgehouden door [Sten Tijhuis](https://github.com/Stensel8) en [Wout Achterhuis](https://github.com/Hintenhaus04) en bevat de gedeelde modules van de HBO-specialisatie *Cloud Engineering* (Voorjaar 2026, Q3).
+Deze repository wordt bijgehouden door [Sten Tijhuis](https://github.com/Stensel8) en [Wout Achterhuis](https://github.com/Hintenhaus04) en bevat de gedeelde modules van de HBO-specialisatie *Cloud Engineering* (Q3).
 
-[![GitHub](https://img.shields.io/badge/GitHub-Stensel8%2Fspring2026--cloud--engineering-181717?logo=github&logoColor=white)](https://github.com/Stensel8/spring2026-cloud-engineering)
+[![GitHub](https://img.shields.io/badge/GitHub-Stensel8%2Fcloud--engineering-181717?logo=github&logoColor=white)](https://github.com/Stensel8/cloud-engineering)
 [![AWS](https://img.shields.io/badge/Cloud-AWS-FF9900?logo=amazon-web-services&logoColor=white)](https://aws.amazon.com/)
 
 ## Modules
