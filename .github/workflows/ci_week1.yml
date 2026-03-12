@@ -17,6 +17,9 @@ on:
       - "cloud-automation-concepts/Week 1/**"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-week1-${{ github.ref }}
   cancel-in-progress: true
