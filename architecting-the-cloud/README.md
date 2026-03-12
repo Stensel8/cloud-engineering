@@ -1,30 +1,30 @@
 # Architecting the Cloud
 
-> School assignment — Cloud Engineering specialisation, Year 3, Q3 (5 EC)
+> Schoolopdracht — Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
 > Duo: [Stensel8](https://github.com/Stensel8) & [Hintenhaus04](https://github.com/Hintenhaus04)
 
-## About
+## Over deze module
 
-Best practices and anti-patterns for hybrid and public Cloud architectures (AWS, Azure, GCP). Designing highly available, scalable Cloud infrastructures and advising on key design choices based on business needs.
+Best practices en anti-patterns voor hybride en publieke cloudarchitecturen, met de nadruk op **Amazon Web Services (AWS)**. Ontwerpen van highly available en schaalbare cloudinfrastructuren en adviseren over belangrijke ontwerpkeuzes op basis van bedrijfsbehoeften.
 
-## Learning Goals
+## Leerdoelen
 
-- Insight into Cloud infrastructures, especially organizational and operational aspects
-- Analyze customer needs and recommend a Cloud solution based on best practices
-- Design a (hybrid) Cloud architecture based on well-considered choices that meets given business needs
+- Inzicht krijgen in cloudinfrastructuren, met name organisatorische en operationele aspecten
+- Klantbehoeften analyseren en een cloudoplossing aanbevelen op basis van best practices
+- Een (hybride) cloudarchitectuur ontwerpen op basis van weloverwogen keuzes die voldoen aan gegeven bedrijfsbehoeften
 
-## Preconditions
+## Voorwaarden
 
-- [ ] 4 modules completed from the AWS Cloud Architecting course:
-  - [ ] Module 11 (mandatory)
-  - [ ] Module 14 (mandatory)
-  - [ ] Two additional modules of choice *(except 1, 2 and 17)*
-- [ ] Personal presentation given
-- [ ] Duo presentation given
-- [ ] Present at all duo presentations + summary notes made
+- [ ] 4 modules afgerond van de AWS Cloud Architecting-cursus:
+  - [ ] Module 11 (verplicht)
+  - [ ] Module 14 (verplicht)
+  - [ ] Twee aanvullende modules naar keuze *(uitgezonderd 1, 2 en 17)*
+- [ ] Individuele presentatie gegeven
+- [ ] Duo-presentatie gegeven
+- [ ] Aanwezig bij alle duo-presentaties + samenvattingen gemaakt
 
-## Course Structure
+## Cursusstructuur
 
-| Week | Topic | Folder |
-|---|---|---|
-| *(to be added as the course progresses)* | — | — |
+| Week | Onderwerp | Map |
+|------|-----------|-----|
+| *(wordt aangevuld naarmate de cursus vordert)* | — | — |

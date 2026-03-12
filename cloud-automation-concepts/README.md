@@ -1,22 +1,22 @@
 # Cloud Automation Concepts
 
-> School assignment — Cloud Engineering specialisation, Year 3, Q3 (5 EC)
+> Schoolopdracht — Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
 > Duo: [Stensel8](https://github.com/Stensel8) & [Hintenhaus04](https://github.com/Hintenhaus04)
 
-## About
+## Over deze module
 
-Automated production of infrastructure (zero-touch deployment) using Infrastructure as Code on AWS. Topics include containerization, orchestration (Kubernetes), and configuration management (Terraform, Ansible) in public, hybrid, and multi-cloud environments.
+Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infrastructure as Code op **AWS**. Onderwerpen zijn onder andere containerisatie, orkestratie (Kubernetes) en configuratiebeheer (Terraform, Ansible, CloudFormation) in publieke, hybride en multi-cloud omgevingen.
 
-## Learning Goals
+## Leerdoelen
 
-- Provision (interdependent) resources in an automated fashion in AWS
-- Dockerize an existing application and deploy it on a cloud infrastructure in an automated fashion
-- Use orchestration & configuration tools (Kubernetes, Terraform, Ansible) in a multi-cloud environment
+- (Onderling afhankelijke) resources op een geautomatiseerde manier inrichten in AWS
+- Een bestaande applicatie containeriseren en op een geautomatiseerde manier uitrollen op een cloudinfrastructuur
+- Orkestratie- en configuratietools gebruiken (Kubernetes, Terraform, Ansible) in een multi-cloud omgeving
 
-## Course Structure
+## Cursusstructuur
 
-| Week | Topic | Folder |
-|---|---|---|
-| Week 1 | *(to be added)* | [Week 1/](Week%201/) |
+| Week | Onderwerp | Map |
+|------|-----------|-----|
+| Week 1 | Introductie & CloudFormation | [Week 1/](Week%201/) |
 
-More weeks will be added as the course progresses.
+Meer weken worden toegevoegd naarmate de cursus vordert.
