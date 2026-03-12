@@ -30,9 +30,7 @@ De opdrachten in deze repository maken gebruik van de [AWS CLI](https://aws.amaz
 <summary>Linux (inclusief CachyOS / Arch-gebaseerd)</summary>
 
 ```bash
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install
+sudo pacman -S aws-cli-v2
 ```
 
 Verifieer de installatie:
@@ -79,6 +77,18 @@ winget install -e --id Amazon.AWSCLI
 ```
 
 Herstart de terminal na de installatie zodat `aws` beschikbaar is.
+
+> [!WARNING]
+> Bij gebruik van **AWS Academy (Learner Lab)** worden de credentials bij elke nieuwe sessie opnieuw gegenereerd. Na het starten van een sessie moet je telkens de nieuwe `aws_access_key_id`, `aws_secret_access_key` en `aws_session_token` handmatig in `%USERPROFILE%\.aws\credentials` zetten. `aws configure` volstaat hier niet — de session token moet je direct in het bestand invullen.
+>
+> ```ini
+> [default]
+> aws_access_key_id=ASIA...
+> aws_secret_access_key=...
+> aws_session_token=...
+> ```
+
+![AWS credentials instellen na nieuwe sessie](assets/aws-credentials-instellen.avif)
 
 </details>
 
