@@ -180,7 +180,11 @@ set -x GPG_TTY (tty)
 
 **1. Installeer Gpg4win**
 
-Download en installeer van [gpg4win.org](https://www.gpg4win.org/). Selecteer tijdens de installatie **Kleopatra**.
+```powershell
+winget install -e --id GnuPG.Gpg4win
+```
+
+Selecteer tijdens de installatie **Kleopatra**.
 
 **2. Maak een sleutel aan in Kleopatra**
 
@@ -211,6 +215,12 @@ git config --global gpg.program "C:/Program Files (x86)/GnuPG/bin/gpg.exe"
 Na de configuratie zie je **Verified** bij je commits op GitHub:
 
 ![Verified commit na GPG signing](assets/gpg-verified-commit.avif)
+
+**Meer informatie:**
+
+- [GitHub Docs — Signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits)
+- [Pro Git — Signing Your Work](https://git-scm.com/book/ms/v2/Git-Tools-Signing-Your-Work)
+- [GitHub Docs — Setting your username in Git](https://docs.github.com/en/get-started/git-basics/setting-your-username-in-git)
 
 ---
 
