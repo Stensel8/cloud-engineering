@@ -42,12 +42,12 @@ jobs:
             ci
 
   image-format:
-    name: Do not use JPG or PNG
+    name: Use modern and efficient media formats
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Zoek niet-AVIF afbeeldingen
+      - name: Zoek naar niet-AVIF afbeeldingen
         id: check
         run: |
           {
@@ -81,7 +81,7 @@ jobs:
               MARKER,
               `Hey @${actor}, je hebt nog afbeeldingen die geen AVIF zijn!`,
               '',
-              'De volgende bestanden in `Uitwerking/` moeten geconverteerd worden:',
+              'De volgende bestanden in `Uitwerking/` moeten geconverteerd worden, zodat ze een modern en efficiënt formaat gebruiken:',
               files,
               '',
               'Installeer `avifenc`:',
