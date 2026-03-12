@@ -3,6 +3,7 @@
 # Jobs:
 #   pr-title      - Controleert of de PR-titel voldoet aan Conventional Commits
 #                   (feat, fix, docs, chore, refactor, style, revert, ci).
+#   markdown      - Lint alle Markdown-bestanden met markdownlint-cli2.
 #   image-format  - Weigert PNG/JPG-afbeeldingen in Uitwerking-mappen en plaatst
 #                   een PR-comment met conversieinstructies als ze worden gevonden.
 name: PR Checks
@@ -11,13 +12,19 @@ on:
   pull_request:
     branches: [main, development]
 
+concurrency:
+  group: pr-checks-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
 jobs:
   pr-title:
     name: Semantic PR title
     runs-on: ubuntu-latest
-    permissions:
-      statuses: write
-      pull-requests: read
     steps:
       - uses: amannn/action-semantic-pull-request@v6
         env:
@@ -34,14 +41,20 @@ jobs:
             revert
             ci
 
+  markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: "**/*.md"
+
   image-format:
     name: Do not use JPG or PNG
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - name: Zoek niet-AVIF afbeeldingen
         id: check

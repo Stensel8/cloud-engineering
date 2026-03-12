@@ -46,7 +46,7 @@ aws-cli/2.x.x Python/3.x.x Linux/x86_64
 
 Configureer daarna je AWS-credentials via `aws configure` (interactief, vraagt elk veld apart) of plak de volledige inhoud direct in `~/.aws/credentials` (sneller bij AWS Academy):
 
-**Optie 1 — via aws configure:**
+**Optie 1: via aws configure**
 
 ```bash
 aws configure
@@ -54,7 +54,7 @@ aws configure
 
 Vul je Access Key ID, Secret Access Key, regio en uitvoerformaat in wanneer daarom gevraagd wordt.
 
-**Optie 2 — direct in het bestand plakken (aanbevolen bij AWS Academy):**
+**Optie 2: direct in het bestand plakken (aanbevolen bij AWS Academy)**
 
 ```bash
 nano ~/.aws/credentials
@@ -91,7 +91,7 @@ Herstart de terminal na de installatie zodat `aws` beschikbaar is.
 
 Configureer daarna je AWS-credentials via `aws configure` (interactief, vraagt elk veld apart) of plak de volledige inhoud direct in `%USERPROFILE%\.aws\credentials` (sneller bij AWS Academy):
 
-**Optie 1 — via aws configure:**
+**Optie 1: via aws configure**
 
 ```powershell
 aws configure
@@ -99,7 +99,7 @@ aws configure
 
 Vul je Access Key ID, Secret Access Key, regio en uitvoerformaat in wanneer daarom gevraagd wordt.
 
-**Optie 2 — direct in het bestand plakken (aanbevolen bij AWS Academy):**
+**Optie 2: direct in het bestand plakken (aanbevolen bij AWS Academy)**
 
 Open `%USERPROFILE%\.aws\credentials` in Kladblok of een andere editor en plak de volledige credentials zoals AWS Academy ze aanlevert:
 
@@ -164,10 +164,9 @@ Ga naar **GitHub → Settings → SSH and GPG keys → New GPG key** en plak de 
 ```bash
 git config --global user.signingkey ABCD1234EF567890
 git config --global commit.gpgsign true
-git config --global gpg.program "C:/Program Files/GnuPG/bin/gpg.exe"
 ```
 
-Voor Fish shell — voeg toe aan `~/.config/fish/config.fish`:
+Voor Fish shell: voeg toe aan `~/.config/fish/config.fish`:
 
 ```bash
 set -x GPG_TTY (tty)
@@ -218,9 +217,9 @@ Na de configuratie zie je **Verified** bij je commits op GitHub:
 
 **Meer informatie:**
 
-- [GitHub Docs — Signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits)
-- [Pro Git — Signing Your Work](https://git-scm.com/book/ms/v2/Git-Tools-Signing-Your-Work)
-- [GitHub Docs — Setting your username in Git](https://docs.github.com/en/get-started/git-basics/setting-your-username-in-git)
+- [GitHub Docs: Signing commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits)
+- [Pro Git: Signing Your Work](https://git-scm.com/book/ms/v2/Git-Tools-Signing-Your-Work)
+- [GitHub Docs: Setting your username in Git](https://docs.github.com/en/get-started/git-basics/setting-your-username-in-git)
 
 ---
 

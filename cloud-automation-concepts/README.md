@@ -1,6 +1,6 @@
 # Cloud Automation Concepts
 
-> Schoolopdracht — Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
+> Schoolopdracht - Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
 > Duo: [Stensel8](https://github.com/Stensel8) & [Hintenhaus04](https://github.com/Hintenhaus04)
 
 ## Over deze module
