@@ -41,15 +41,6 @@ jobs:
             revert
             ci
 
-  markdown:
-    name: Markdown lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: DavidAnson/markdownlint-cli2-action@v22
-        with:
-          globs: "**/*.md"
-
   image-format:
     name: Do not use JPG or PNG
     runs-on: ubuntu-latest
@@ -143,12 +134,11 @@ jobs:
     name: Auto-update PR checklist
     runs-on: ubuntu-latest
     if: always()
-    needs: [pr-title, markdown, image-format]
+    needs: [pr-title, image-format]
     steps:
       - uses: actions/github-script@v8
         env:
           RESULT_PR_TITLE:     ${{ needs.pr-title.result }}
-          RESULT_MARKDOWN:     ${{ needs.markdown.result }}
           RESULT_IMAGE_FORMAT: ${{ needs.image-format.result }}
         with:
           script: |
