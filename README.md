@@ -1,5 +1,4 @@
 [![PR Checks](https://github.com/Stensel8/cloud-engineering/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/pr-checks.yml)
-[![Dependabot Updates](https://github.com/Stensel8/cloud-engineering/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/dependabot/dependabot-updates)
 
 > [!NOTE]
 > Deze repository wordt primair in het **Nederlands** bijgehouden.
