@@ -121,6 +121,99 @@ aws_session_token=...
 
 ---
 
+## GPG Commit Signing instellen
+
+Volg deze stappen éénmalig om je commits te ondertekenen. Zo verschijnt **Verified** bij je commits op GitHub.
+
+<details>
+<summary>Linux (inclusief CachyOS / Arch-gebaseerd)</summary>
+
+**1. Installeer GPG**
+
+```bash
+sudo pacman -S gnupg
+```
+
+**2. Maak een sleutelpaar aan**
+
+```bash
+gpg --full-generate-key
+```
+
+Kies RSA 4096 bits en vul je naam en exact je GitHub-e-mailadres in.
+
+**3. Zoek je Key ID op**
+
+```bash
+gpg --list-secret-keys --keyid-format=long
+```
+
+De Key ID staat achter `rsa4096/`, bijv. `ABCD1234EF567890`.
+
+**4. Exporteer en registreer je publieke sleutel op GitHub**
+
+```bash
+gpg --armor --export ABCD1234EF567890
+```
+
+Kopieer de volledige uitvoer (inclusief `-----BEGIN PGP PUBLIC KEY BLOCK-----`).
+Ga naar **GitHub → Settings → SSH and GPG keys → New GPG key** en plak de sleutel.
+
+**5. Configureer Git**
+
+```bash
+git config --global user.signingkey ABCD1234EF567890
+git config --global commit.gpgsign true
+git config --global gpg.program gpg
+```
+
+Voor Fish shell — voeg toe aan `~/.config/fish/config.fish`:
+
+```bash
+set -x GPG_TTY (tty)
+```
+
+</details>
+
+<details>
+<summary>Windows</summary>
+
+**1. Installeer Gpg4win**
+
+Download en installeer van [gpg4win.org](https://www.gpg4win.org/). Selecteer tijdens de installatie **Kleopatra**.
+
+**2. Maak een sleutel aan in Kleopatra**
+
+Open **Kleopatra** → **Certificate → New Certificate → Create a personal OpenPGP key pair**.
+Vul je naam en exact je GitHub-e-mailadres in. Kies RSA 4096 en voltooi de wizard. Stel daarna een wachtwoord in via rechtsklik → **Change Passphrase**.
+
+**3. Exporteer en registreer je publieke sleutel op GitHub**
+
+Rechtsklik op je sleutel → **Export Certificates…** → sla op als `.asc`.
+Open het bestand, kopieer alles en plak het in **GitHub → Settings → SSH and GPG keys → New GPG key**.
+
+**4. Zoek je Key ID op**
+
+```powershell
+gpg --list-secret-keys --keyid-format=long
+```
+
+**5. Configureer Git**
+
+```powershell
+git config --global user.signingkey ABCD1234EF567890
+git config --global commit.gpgsign true
+git config --global gpg.program "C:/Program Files (x86)/GnuPG/bin/gpg.exe"
+```
+
+</details>
+
+Na de configuratie zie je **Verified** bij je commits op GitHub:
+
+![Verified commit na GPG signing](assets/gpg-verified-commit.avif)
+
+---
+
 ## Afbeeldingen
 
 Alle afbeeldingen in deze repository gebruiken het [AVIF](https://en.wikipedia.org/wiki/AVIF)-formaat: open, royalty-free en compacter dan PNG of JPEG bij gelijke kwaliteit.
