@@ -1,0 +1,109 @@
+# Kwaliteitschecks die draaien op elke pull request naar main of development.
+#
+# Jobs:
+#   pr-title      - Controleert of de PR-titel voldoet aan Conventional Commits
+#                   (feat, fix, docs, chore, refactor, style, revert, ci).
+#   image-format  - Weigert PNG/JPG-afbeeldingen in Uitwerking-mappen en plaatst
+#                   een PR-comment met conversieinstructies als ze worden gevonden.
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  pr-title:
+    name: Semantic PR title
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          wip: true
+          types: |
+            feat
+            fix
+            docs
+            chore
+            refactor
+            style
+            revert
+            ci
+
+  image-format:
+    name: Do not use JPG or PNG
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zoek niet-AVIF afbeeldingen
+        id: check
+        run: |
+          {
+            echo "files<<EOF"
+            find . -path '*Uitwerking*' \
+              -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) | sort
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          count=$(find . -path '*Uitwerking*' \
+            -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) | wc -l)
+          if [ "$count" -gt 0 ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "Alle afbeeldingen zijn AVIF."
+          fi
+
+      - name: PR-comment plaatsen
+        if: steps.check.outputs.found == 'true'
+        uses: actions/github-script@v7
+        env:
+          FILES: ${{ steps.check.outputs.files }}
+          ACTOR: ${{ github.event.pull_request.user.login }}
+        with:
+          script: |
+            const files = process.env.FILES.trim().split('\n').map(f => `- \`${f}\``).join('\n');
+            const actor = process.env.ACTOR;
+            const body = [
+              `Hey @${actor}, je hebt nog afbeeldingen die geen AVIF zijn!`,
+              '',
+              'De volgende bestanden in `Uitwerking/` moeten geconverteerd worden:',
+              files,
+              '',
+              'Installeer `avifenc`:',
+              '```bash',
+              'sudo pacman -S libavif',
+              '```',
+              '',
+              'Batch-converteer alle afbeeldingen (recursief):',
+              '```bash',
+              'find . -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \\) | while read -r f; do',
+              '  avifenc -q 80 -s 6 "$f" "${f%.*}.avif" && rm "$f"',
+              'done',
+              '```',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });
+
+      - name: Annoteer en faal
+        if: steps.check.outputs.found == 'true'
+        env:
+          FILES: ${{ steps.check.outputs.files }}
+        run: |
+          while IFS= read -r f; do
+            echo "::error file=$f::Converteer naar AVIF voor het mergen"
+          done <<< "$FILES"
+          exit 1
