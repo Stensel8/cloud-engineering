@@ -243,3 +243,4 @@ Dit is een lopend project voor educatieve doeleinden. Code, configuraties en doc
 ---
 
 *Laatst bijgewerkt: maart 2026*
+
