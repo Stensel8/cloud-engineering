@@ -108,7 +108,7 @@ jobs:
               '|------|----------|',
               '| Afbeeldingen | `.avif`, `.jxl`, `.webp`, `.svg` |',
               '| Video | `.webm` (AV1 of VP9) |',
-              '| Audio | `.ogg` (Opus), `.flac` |',
+              '| Audio | `.ogg`, `.opus`, `.flac` |',
               '',
               '**Afbeeldingen converteren naar AVIF:**',
               '',
