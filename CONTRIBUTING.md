@@ -201,7 +201,7 @@ Vereist `ffmpeg`:
 # Arch
 sudo pacman -S ffmpeg
 
-# Fedora — vereist eerst RPM Fusion:
+# Fedora: vereist eerst RPM Fusion:
 # sudo dnf install https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
 sudo dnf install ffmpeg
 
