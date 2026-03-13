@@ -1,0 +1,20 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "cfn-lint",
+      "pattern": [
+        {
+          "regexp": "^(.+):(\\d+):(\\d+):(\\d+):(\\d+):([A-Z][0-9]+):(Error|Warning|Info):(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "endLine": 4,
+          "endColumn": 5,
+          "code": 6,
+          "severity": 7,
+          "message": 8
+        }
+      ]
+    }
+  ]
+}

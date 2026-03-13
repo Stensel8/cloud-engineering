@@ -11,11 +11,16 @@ Resources:
           Value: Productie
 
 # --- CloudFormation Commands ---
+# Voer deze commando's uit in deze map (of gebruik een volledig pad naar stensel-stack.yaml).
+# 
 # Aanmaken:
 #   aws cloudformation create-stack --stack-name stensel-stack --template-body file://stensel-stack.yaml --region us-east-1
 #
 # Status controleren:
 #   aws cloudformation describe-stacks --stack-name stensel-stack --region us-east-1
+# 
+# Events bekijken:
+#   aws cloudformation describe-stack-events --stack-name stensel-stack --region us-east-1
 #
 # Bijwerken (na wijzigingen in dit bestand):
 #   aws cloudformation update-stack --stack-name stensel-stack --template-body file://stensel-stack.yaml --region us-east-1
