@@ -25,6 +25,6 @@ Vink alles aan wat van toepassing is. Je kunt de letter x invullen in het vakje.
 ## Checklist
 
 - [ ] PR-titel volgt de commit-conventie (bijv. `fix: correct CloudFormation template syntax`)
-- [ ] Afbeeldingen zijn in AVIF-formaat (geen PNG/JPG)
+- [ ] Mediabestanden gebruiken een modern open-source formaat (afbeeldingen: AVIF/JXL/WebP/SVG, video: WebM, audio: OGG/FLAC)
 - [ ] CloudFormation-templates zijn gevalideerd door pipeline (indien van toepassing)
 - [ ] Ik heb deze code zelf getest
