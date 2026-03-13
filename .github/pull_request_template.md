@@ -28,3 +28,7 @@ Vink alles aan wat van toepassing is. Je kunt de letter x invullen in het vakje.
 - [ ] Mediabestanden gebruiken een modern open-source formaat (afbeeldingen: AVIF/JXL/WebP/SVG, video: WebM, audio: OGG/FLAC)
 - [ ] CloudFormation-templates zijn gevalideerd door pipeline (indien van toepassing)
 - [ ] Ik heb deze code zelf getest
+
+---
+
+[Bekijk de pull request template](https://github.com/Stensel8/cloud-engineering/blob/main/.github/pull_request_template.md)

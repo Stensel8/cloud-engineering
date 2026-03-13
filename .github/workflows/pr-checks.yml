@@ -211,8 +211,10 @@ jobs:
               desired.add(titleMatch[1]);
             }
 
-            // Aangevinkte types uit de PR-beschrijving
-            const body = context.payload.pull_request.body || '';
+            // Aangevinkte types uit de PR-beschrijving (HTML-comments worden eerst verwijderd
+            // zodat voorbeelden in <!-- --> niet per ongeluk als aangevinkt worden gezien)
+            const rawBody = context.payload.pull_request.body || '';
+            const body = rawBody.replace(/<!--[\s\S]*?-->/g, '');
             const checkboxRegex = /^- \[x\] `(\w+)`/gim;
             let m;
             while ((m = checkboxRegex.exec(body)) !== null) {
