@@ -1,12 +1,12 @@
 # Kwaliteitschecks die draaien op elke pull request naar main of development.
 #
 # Jobs:
-#   pr-title      - Controleert of de PR-titel voldoet aan Conventional Commits
-#                   (feat, fix, content, docs, chore, refactor, style, revert, ci).
-#   image-format  - Weigert PNG/JPG-afbeeldingen in Uitwerking-mappen en plaatst
-#                   een PR-comment met conversieinstructies als ze worden gevonden.
+#   pr-title         - Controleert of de PR-titel voldoet aan Conventional Commits
+#                      (feat, fix, content, docs, chore, refactor, style, revert, ci).
+#   media-format     - Weigert verouderde of niet-opensource mediabestanden in Uitwerking-mappen.
+#                      Toegestaan: avif/jxl/webp/svg (afbeeldingen), webm (video), ogg/opus/flac (audio).
 #   update-checklist - Ruimt niet-aangevinkte type-opties op in de PR-beschrijving.
-#   label-pr      - Kent automatisch het juiste label toe op basis van het commit type in de PR-titel.
+#   label-pr         - Kent automatisch labels toe op basis van PR-titel en aangevinkte checkboxes.
 name: PR Checks
 
 on:
@@ -21,6 +21,7 @@ permissions:
   contents: read
   pull-requests: write
   statuses: write
+  issues: write
 
 jobs:
   pr-title:
@@ -158,7 +159,7 @@ jobs:
           FILES: ${{ steps.check.outputs.files }}
         run: |
           while IFS= read -r f; do
-            echo "::error file=$f::Verouderd bestandsformaat. Gebruik AVIF/WebP/JXL voor afbeeldingen of WebM/OGG voor video."
+            echo "::error file=$f::Verouderd bestandsformaat. Toegestaan: avif/jxl/webp/svg (afbeeldingen), webm (video), ogg/opus/flac (audio)."
           done <<< "$FILES"
           exit 1
 

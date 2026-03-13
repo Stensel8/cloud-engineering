@@ -53,7 +53,7 @@ ci: voeg YAML-validatie toe aan PR-checks workflow
 - Één logische wijziging per PR
 - Target de `development`-branch, niet `main`
 - CloudFormation-templates moeten door de pipeline gevalideerd zijn voor je een PR opent
-- Mediabestanden moeten een modern open-source formaat gebruiken: afbeeldingen als `.avif`, `.jxl`, `.webp` of `.svg`; video als `.webm`; audio als `.ogg` (Opus) of `.flac`
+- Mediabestanden moeten een modern open-source formaat gebruiken: afbeeldingen als `.avif`, `.jxl`, `.webp` of `.svg`; video als `.webm`; audio als `.ogg`, `.opus` of `.flac`
 
 ---
 

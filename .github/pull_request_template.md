@@ -20,12 +20,12 @@ Vink alles aan wat van toepassing is. Je kunt de letter x invullen in het vakje.
 - [ ] `ci` — wijzigingen aan GitHub Actions workflows
 - [ ] `revert` — een eerdere commit terugdraaien
 
-> PR-titel en commits moeten de conventie volgen. Zie de [contributing guide](../CONTRIBUTING.md#commit-berichten)
+> PR-titel en commits moeten de conventie volgen. Zie de [contributing guide](../CONTRIBUTING.md#commits)
 
 ## Checklist
 
 - [ ] PR-titel volgt de commit-conventie (bijv. `fix: correct CloudFormation template syntax`)
-- [ ] Mediabestanden gebruiken een modern open-source formaat (afbeeldingen: AVIF/JXL/WebP/SVG, video: WebM, audio: OGG/FLAC)
+- [ ] Mediabestanden gebruiken een modern open-source formaat (afbeeldingen: AVIF/JXL/WebP/SVG, video: WebM, audio: OGG/Opus/FLAC)
 - [ ] CloudFormation-templates zijn gevalideerd door pipeline (indien van toepassing)
 - [ ] Ik heb deze code zelf getest
 
