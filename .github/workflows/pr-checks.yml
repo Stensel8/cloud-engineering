@@ -1,11 +1,12 @@
 # Kwaliteitschecks die draaien op elke pull request naar main of development.
 #
 # Jobs:
-#   pr-title      - Controleert of de PR-titel voldoet aan Conventional Commits
-#                   (feat, fix, docs, chore, refactor, style, revert, ci).
-#   markdown      - Lint alle Markdown-bestanden met markdownlint-cli2.
-#   image-format  - Weigert PNG/JPG-afbeeldingen in Uitwerking-mappen en plaatst
-#                   een PR-comment met conversieinstructies als ze worden gevonden.
+#   pr-title         - Controleert of de PR-titel voldoet aan Conventional Commits
+#                      (feat, fix, content, docs, chore, refactor, style, revert, ci).
+#   media-format     - Weigert verouderde of niet-opensource mediabestanden in Uitwerking-mappen.
+#                      Toegestaan: avif/jxl/webp/svg (afbeeldingen), webm (video), ogg/opus/flac (audio).
+#   update-checklist - Ruimt niet-aangevinkte type-opties op in de PR-beschrijving.
+#   label-pr         - Kent automatisch labels toe op basis van PR-titel en aangevinkte checkboxes.
 name: PR Checks
 
 on:
@@ -20,6 +21,7 @@ permissions:
   contents: read
   pull-requests: write
   statuses: write
+  issues: write
 
 jobs:
   pr-title:
@@ -34,6 +36,7 @@ jobs:
           types: |
             feat
             fix
+            content
             docs
             chore
             refactor
@@ -41,29 +44,45 @@ jobs:
             revert
             ci
 
-  image-format:
-    name: Use modern and efficient media formats
+  media-format:
+    name: Gebruik moderne en efficiënte bestandsformaten
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
 
-      - name: Zoek naar niet-AVIF afbeeldingen
+      - name: Zoek naar niet-toegestane mediabestanden
         id: check
         run: |
+          # Whitelist van moderne, open-source formaten.
+          # Alles wat een mediabestand is maar hier NIET bij staat, wordt geweigerd.
+          #
+          # Afbeeldingen : avif, jxl, webp, svg
+          # Video        : webm
+          # Audio        : ogg, opus, flac
+          #
+          # Detecteer mediabestanden op extensie en filter de whitelist eruit.
+          allowed='avif|jxl|webp|svg|webm|ogg|opus|flac'
+          media='jpg|jpeg|png|gif|bmp|tiff|tif|heif|heic|ico|psd|xcf|raw|cr2|nef|arw|dng|eps|ai|avif|jxl|webp|svg|mp4|m4v|avi|mov|wmv|flv|mkv|3gp|ts|vob|rm|rmvb|asf|webm|ogg|ogv|opus|flac|mp3|aac|wav|wma'
+
           {
             echo "files<<EOF"
-            find . -path '*Uitwerking*' \
-              -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) | sort
+            find . -path '*Uitwerking*' -type f \
+              | grep -iE "\.($media)$" \
+              | grep -ivE "\.($allowed)$" \
+              | sort
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-          count=$(find . -path '*Uitwerking*' \
-            -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) | wc -l)
+          count=$(find . -path '*Uitwerking*' -type f \
+            | grep -iE "\.($media)$" \
+            | grep -ivE "\.($allowed)$" \
+            | wc -l)
+
           if [ "$count" -gt 0 ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "Alle afbeeldingen zijn AVIF."
+            echo "Alle mediabestanden gebruiken moderne open-source formaten."
           fi
 
       - name: PR-comment plaatsen of bijwerken
@@ -74,26 +93,40 @@ jobs:
           ACTOR: ${{ github.event.pull_request.user.login }}
         with:
           script: |
-            const MARKER = '<!-- avif-check -->';
+            const MARKER = '<!-- media-format-check -->';
             const files = process.env.FILES.trim().split('\n').map(f => `- \`${f}\``).join('\n');
             const actor = process.env.ACTOR;
             const body = [
               MARKER,
-              `Hey @${actor}, je hebt nog afbeeldingen die geen AVIF zijn!`,
+              `Hey @${actor}, je hebt bestanden in een verouderd of niet-opensourceformaat!`,
               '',
-              'De volgende bestanden in `Uitwerking/` moeten geconverteerd worden, zodat ze een modern en efficiënt formaat gebruiken:',
+              'De volgende bestanden in `Uitwerking/` moeten geconverteerd worden naar een modern, open-source formaat:',
               files,
               '',
-              'Installeer `avifenc`:',
+              '**Toegestane formaten:**',
+              '| Type | Formaten |',
+              '|------|----------|',
+              '| Afbeeldingen | `.avif`, `.jxl`, `.webp`, `.svg` |',
+              '| Video | `.webm` (AV1 of VP9) |',
+              '| Audio | `.ogg` (Opus), `.flac` |',
+              '',
+              '**Afbeeldingen converteren naar AVIF:**',
+              '',
+              'Installeer `avifenc` en `cwebp`:',
               '```bash',
-              'sudo pacman -S libavif',
+              'sudo pacman -S libavif libwebp',
               '```',
               '',
-              'Batch-converteer alle afbeeldingen (recursief):',
+              'Batch-converteer (recursief):',
               '```bash',
-              'find . -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \\) | while read -r f; do',
+              'find . -type f \\( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \\) | while read -r f; do',
               '  avifenc -q 80 -s 6 "$f" "${f%.*}.avif" && rm "$f"',
               'done',
+              '```',
+              '',
+              '**Video converteren naar WebM (vereist ffmpeg):**',
+              '```bash',
+              'ffmpeg -i invoer.mp4 -c:v libvpx-vp9 -b:v 0 -crf 33 -c:a libopus uitvoer.webm',
               '```',
             ].join('\n');
 
@@ -126,7 +159,7 @@ jobs:
           FILES: ${{ steps.check.outputs.files }}
         run: |
           while IFS= read -r f; do
-            echo "::error file=$f::Converteer naar AVIF voor het mergen"
+            echo "::error file=$f::Verouderd bestandsformaat. Toegestaan: avif/jxl/webp/svg (afbeeldingen), webm (video), ogg/opus/flac (audio)."
           done <<< "$FILES"
           exit 1
 
@@ -134,12 +167,12 @@ jobs:
     name: Auto-update PR checklist
     runs-on: ubuntu-latest
     if: always()
-    needs: [pr-title, image-format]
+    needs: [pr-title, media-format]
     steps:
       - uses: actions/github-script@v8
         env:
           RESULT_PR_TITLE:     ${{ needs.pr-title.result }}
-          RESULT_IMAGE_FORMAT: ${{ needs.image-format.result }}
+          RESULT_MEDIA_FORMAT: ${{ needs.media-format.result }}
         with:
           script: |
             const { data: pr } = await github.rest.pulls.get({
@@ -162,4 +195,61 @@ jobs:
               pull_number: context.payload.pull_request.number,
               body,
             });
+
+  label-pr:
+    name: Label op basis van commit type
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const typeLabels = ['feat', 'fix', 'content', 'docs', 'chore', 'refactor', 'style', 'ci', 'revert'];
+            const desired = new Set();
+
+            // Type uit de PR-titel
+            const titleMatch = context.payload.pull_request.title.match(/^(\w+)(\(.+\))?!?:/);
+            if (titleMatch && typeLabels.includes(titleMatch[1])) {
+              desired.add(titleMatch[1]);
+            }
+
+            // Aangevinkte types uit de PR-beschrijving (HTML-comments worden eerst verwijderd
+            // zodat voorbeelden in <!-- --> niet per ongeluk als aangevinkt worden gezien)
+            const rawBody = context.payload.pull_request.body || '';
+            const body = rawBody.replace(/<!--[\s\S]*?-->/g, '');
+            const checkboxRegex = /^- \[x\] `(\w+)`/gim;
+            let m;
+            while ((m = checkboxRegex.exec(body)) !== null) {
+              if (typeLabels.includes(m[1])) desired.add(m[1]);
+            }
+
+            if (desired.size === 0) return;
+
+            const prNumber = context.payload.pull_request.number;
+            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const currentNames = currentLabels.map(l => l.name);
+
+            // Verwijder type-labels die niet meer van toepassing zijn
+            for (const label of currentNames.filter(l => typeLabels.includes(l) && !desired.has(l))) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                name: label,
+              });
+            }
+
+            // Voeg ontbrekende labels toe
+            const toAdd = [...desired].filter(l => !currentNames.includes(l));
+            if (toAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                labels: toAdd,
+              });
+            }
 

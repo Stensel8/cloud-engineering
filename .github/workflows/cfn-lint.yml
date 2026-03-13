@@ -1,0 +1,126 @@
+# CloudFormation Lint - Syntax en stijlcontrole op alle CloudFormation-templates.
+#
+# Jobs:
+#   lint - Controleert alle CloudFormation-templates in cloud-automation-concepts/ op
+#          stijl- en veiligheidsfouten met cfn-lint.
+#          Op PR-events wordt een comment geplaatst met de gevonden problemen.
+#
+# Geen secrets vereist voor lint.
+name: CloudFormation Lint
+
+on:
+  push:
+    paths:
+      - "cloud-automation-concepts/**/*.yaml"
+      - "cloud-automation-concepts/**/*.yml"
+  pull_request:
+    paths:
+      - "cloud-automation-concepts/**/*.yaml"
+      - "cloud-automation-concepts/**/*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: cfn-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: CloudFormation lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Installeer cfn-lint
+        run: pip install -r requirements.txt
+
+      - name: Registreer problem matcher
+        run: echo "::add-matcher::.github/cfn-lint-matcher.json"
+
+      - name: Lint CloudFormation templates
+        id: lint
+        continue-on-error: true
+        run: |
+          set +e
+          # Gebruik find zodat cfn-lint geen glob-problemen heeft met **
+          mapfile -d '' files < <(find cloud-automation-concepts -type f \( -name "*.yaml" -o -name "*.yml" \) -print0)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Geen CloudFormation-templates gevonden."
+            exit_code=0
+            output=""
+          else
+            output=$(cfn-lint --format parseable "${files[@]}" 2>&1)
+            exit_code=$?
+          fi
+
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          {
+            echo "output<<LINT_EOF"
+            echo "$output"
+            echo "LINT_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          # Stuur parseable output naar stdout zodat de problem matcher annotaties aanmaakt
+          echo "$output"
+
+      - name: PR-comment plaatsen of bijwerken
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        env:
+          LINT_OUTPUT: ${{ steps.lint.outputs.output }}
+          EXIT_CODE: ${{ steps.lint.outputs.exit_code }}
+          ACTOR: ${{ github.event.pull_request.user.login }}
+        with:
+          script: |
+            const MARKER = '<!-- cfn-lint-check -->';
+            const exitCode = parseInt(process.env.EXIT_CODE);
+            const output = (process.env.LINT_OUTPUT || '').trim();
+            const actor = process.env.ACTOR;
+
+            let body;
+            if (exitCode === 0) {
+              body = `${MARKER}\n:white_check_mark: Alle CloudFormation-templates zien er goed uit.`;
+            } else {
+              body = [
+                MARKER,
+                `Hey @${actor}, cfn-lint heeft problemen gevonden in je CloudFormation-templates:`,
+                '',
+                '```',
+                output,
+                '```',
+                '',
+                'Bekijk de **Files changed**-tab voor annotaties op de exacte regellocaties.',
+                'Zodra alles is opgelost en de workflow opnieuw slaagt, verdwijnt deze melding automatisch.',
+              ].join('\n');
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+            const existing = comments.find(c => c.body.includes(MARKER));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else if (exitCode !== 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body,
+              });
+            }
+
+      - name: Faal als er lint-fouten zijn
+        if: steps.lint.outputs.exit_code != '0'
+        run: exit 1
