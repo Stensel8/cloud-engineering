@@ -26,8 +26,8 @@ MyfirstVPC:
 
 ## 2. Subnet
 
-<!-- Voeg hier de code toe nadat je het subnet aan de template hebt toegevoegd -->
-
+```yaml
+````
 ---
 
 ## 3. Internet Gateway

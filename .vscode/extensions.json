@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    // CloudFormation Linter - syntax- en stijlcontrole voor CF-templates
+    "kddejong.vscode-cfn-lint",
+    // YAML - algemene YAML-ondersteuning (vereist voor cfn-lint extensie)
+    "redhat.vscode-yaml"
+  ]
+}

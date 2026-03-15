@@ -23,6 +23,39 @@ Meer weken worden toegevoegd naarmate de cursus vordert.
 
 ---
 
+## VS Code instellen
+
+### CloudFormation Linter
+
+Het lesmateriaal van Saxion verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van aws-scripting-guy. **Installeer die niet.** De extensie is sinds 2017 niet meer onderhouden, herkent moderne CloudFormation-syntax niet en geeft foutieve of ontbrekende feedback.
+
+Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter** (`kddejong.vscode-cfn-lint`). Deze extensie wordt actief onderhouden door AWS, kent alle huidige resource-typen en intrinsieke functies (`!Ref`, `!Sub`, `!GetAtt`, enzovoort), en toont fouten direct in de editor.
+
+**Stap 1 — Extensies installeren**
+
+Bij het openen van deze repo toont VS Code automatisch een popup om de aanbevolen extensies te installeren. Klik op *Install*. Dit installeert:
+
+- `kddejong.vscode-cfn-lint` — CloudFormation Linter
+- `redhat.vscode-yaml` — YAML-ondersteuning (vereist door de linter)
+
+**Stap 2 — cfn-lint installeren**
+
+De extensie heeft het `cfn-lint` commando-regelprogramma nodig. Installeer het via pip:
+
+```bash
+pip install -r requirements.txt
+```
+
+Verifieer daarna:
+
+```bash
+cfn-lint --version
+```
+
+Herstart VS Code als de extensie cfn-lint nog niet automatisch oppikt.
+
+---
+
 ## AWS CLI installeren
 
 De opdrachten in deze module maken gebruik van de [AWS CLI](https://aws.amazon.com/cli/). Installeer deze eenmalig via onderstaande instructies.
