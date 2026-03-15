@@ -187,32 +187,13 @@ Importeer daarna de publieke sleutel naar AWS onder een naam:
 aws ec2 import-key-pair --key-name week1-key --public-key-material fileb://id_ed25519.pub --region us-east-1
 ```
 
-**Hoe het verder werkt:** bij het aanmaken van de stack via `aws cloudformation create-stack` geef je `week1-key` mee als parameter. AWS zoekt dan de bijbehorende publieke sleutel op en plaatst die automatisch in `~/.ssh/authorized_keys` op de EC2-instance. De private key verlaat je laptop nooit. Je kunt daarna direct verbinden.
-
-### SSH-verbinding
-
-Haal het publieke IP op uit de stack outputs (zie Deployment) en verbind:
-
-```powershell
-ssh -i id_ed25519 ec2-user@<publiek-ip>
-```
-
-Of voeg een shortcut toe aan `C:\Users\<jouw-naam>\.ssh\config`:
-
-```
-Host week1
-    HostName <publiek-ip>
-    User ec2-user
-    IdentityFile C:\Users\<jouw-naam>\Documents\GitHub\cloud-engineering\cloud-automation-concepts\Week 1\Uitwerking\id_ed25519
-```
-
-Daarna volstaat `ssh week1`.
+**Hoe het verder werkt:** bij het aanmaken van de stack via `aws cloudformation create-stack` geef je `week1-key` mee als parameter. AWS zoekt dan de bijbehorende publieke sleutel op en plaatst die automatisch in `~/.ssh/authorized_keys` op de EC2-instance. De private key verlaat je laptop nooit.
 
 ---
 
 ## Deployment
 
-Voer deze commando's uit vanuit de map `Week 1/Uitwerking/`. Vervang `<jouw-key-naam>` door de naam van je key pair uit de voorbereiding hierboven.
+Voer deze commando's uit vanuit de map `Week 1/Uitwerking/`.
 
 <details>
 <summary>Stack aanmaken</summary>
@@ -267,3 +248,24 @@ aws cloudformation delete-stack --stack-name stensel-stack --region us-east-1
 ```
 
 </details>
+
+---
+
+## SSH-verbinding
+
+Haal het publieke IP op uit de stack outputs en verbind:
+
+```
+ssh -i id_ed25519 ec2-user@<publiek-ip>
+```
+
+Of voeg een shortcut toe aan `C:\Users\<jouw-naam>\.ssh\config`:
+
+```
+Host week1
+    HostName <publiek-ip>
+    User ec2-user
+    IdentityFile C:\Users\<jouw-naam>\Documents\GitHub\cloud-engineering\cloud-automation-concepts\Week 1\Uitwerking\id_ed25519
+```
+
+Daarna volstaat `ssh week1`.
