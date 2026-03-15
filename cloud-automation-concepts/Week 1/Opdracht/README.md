@@ -41,7 +41,7 @@ Referentie: [nginx installatiegids](https://docs.nginx.com/nginx/admin-guide/ins
 
 Installeer Visual Studio Code en de CloudFormation Linter-extensie.
 
-> **Let op:** Het lesmateriaal verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van aws-scripting-guy. Die extensie is sinds 2017 niet meer onderhouden en werkt niet meer correct met moderne VS Code-versies. Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter**-extensie.
+> **Let op:** Het lesmateriaal verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van aws-scripting-guy. Die extensie is sinds 2022 niet meer onderhouden en werkt niet meer correct met moderne VS Code-versies. Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter**-extensie.
 
 **Installeer cfn-lint:**
 

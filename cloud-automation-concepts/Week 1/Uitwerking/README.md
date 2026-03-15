@@ -167,7 +167,7 @@ WebInstance:
         Value: web-instance
 ```
 
-`ImageId` gebruikt een SSM-parameter om automatisch de nieuwste Amazon Linux 2 AMI op te halen, zodat je de AMI-ID niet handmatig hoeft bij te houden. `Fn::Base64` converteert het UserData-script naar het vereiste formaat; het script wordt uitgevoerd bij de eerste boot.
+`ImageId` gebruikt een SSM-parameter om automatisch de nieuwste Amazon Linux 2023 AMI op te halen, zodat je de AMI-ID niet handmatig hoeft bij te houden. `Fn::Base64` converteert het UserData-script naar het vereiste formaat; het script wordt uitgevoerd bij de eerste boot.
 
 ---
 
@@ -280,8 +280,12 @@ Daarna volstaat `ssh week1`.
 
 ![Uitwerking overzicht](image.avif)
 
-### Schermopname
+![SSH-verbinding en Amazon Linux 2 EOL-melding](screenshot-ssh-al2-warning.avif)
 
-De volledige uitwerking als schermopname (WebM/AV1):
+![Nginx-status en curl-output](screenshot-nginx-status.avif)
+
+### Screenrecording
+
+De volledige uitwerking als Screenrecord opgenomen (WebM/AV1):
 
 [demo-week1.webm](demo-week1.webm)

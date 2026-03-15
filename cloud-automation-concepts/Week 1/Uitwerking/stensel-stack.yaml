@@ -144,9 +144,9 @@ Resources:
   WebInstance:
     Type: AWS::EC2::Instance
     Properties:
-      # Dynamische verwijzing naar de nieuwste Amazon Linux 2 AMI via SSM.
+      # Dynamische verwijzing naar de nieuwste Amazon Linux 2023 AMI via SSM.
       # Zo hoef je de AMI-ID niet handmatig bij te houden.
-      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-x86_64}}'
       InstanceType: t2.micro
       KeyName: !Ref KeyName
       SubnetId: !Ref PubliekSubnet
@@ -156,7 +156,7 @@ Resources:
         # Fn::Base64 versleutelt het script naar Base64 - vereist formaat voor UserData.
         Fn::Base64: |
           #!/bin/bash
-          amazon-linux-extras install nginx1 -y
+          dnf install -y nginx
           systemctl enable nginx
           systemctl start nginx
       Tags:

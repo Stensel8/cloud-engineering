@@ -28,7 +28,7 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 
 ### CloudFormation Linter
 
-Het lesmateriaal van Saxion verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van aws-scripting-guy. **Installeer die niet.** De extensie is sinds 2017 niet meer onderhouden, herkent moderne CloudFormation-syntax niet en geeft foutieve of ontbrekende feedback.
+Het lesmateriaal van Saxion verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van aws-scripting-guy. **Installeer die niet.** De extensie is sinds 2022 niet meer onderhouden, herkent moderne CloudFormation-syntax niet en geeft foutieve of ontbrekende feedback.
 
 Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter** (`kddejong.vscode-cfn-lint`). Deze extensie wordt actief onderhouden door AWS, kent alle huidige resource-typen en intrinsieke functies (`!Ref`, `!Sub`, `!GetAtt`, enzovoort), en toont fouten direct in de editor.
 
