@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(unzip -l \"Week 1/brightspace-lesmateriaal/Cloud Engineering \\(2025-2026\\) - 3152026 - 343 PM.zip\")",
+      "Bash(unzip -l \"Week 2/Cloud Engineering \\(2025-2026\\) - 3152026 - 400 PM.zip\")",
+      "Bash(unzip -l \"Week 3/brightspace-lesmateriaal/Cloud Engineering \\(2025-2026\\) - 3152026 - 411 PM.zip\")",
+      "Bash(unzip -l \"Week 4/Cloud Engineering \\(2025-2026\\) - 3152026 - 412 PM.zip\")",
+      "Bash(mkdir -p /tmp/cac-extract/week1 /tmp/cac-extract/week2 /tmp/cac-extract/week3 /tmp/cac-extract/week4)",
+      "Bash(unzip -o \"Week 1/brightspace-lesmateriaal/Cloud Engineering \\(2025-2026\\) - 3152026 - 343 PM.zip\" -d /tmp/cac-extract/week1)",
+      "Bash(unzip -o \"Week 2/Cloud Engineering \\(2025-2026\\) - 3152026 - 400 PM.zip\" -d /tmp/cac-extract/week2)",
+      "Bash(unzip -o \"Week 3/brightspace-lesmateriaal/Cloud Engineering \\(2025-2026\\) - 3152026 - 411 PM.zip\" -d /tmp/cac-extract/week3)",
+      "Bash(unzip -o \"Week 4/Cloud Engineering \\(2025-2026\\) - 3152026 - 412 PM.zip\" -d /tmp/cac-extract/week4)",
+      "Read(//tmp/cac-extract/**)",
+      "Bash(cp \"/tmp/cac-extract/week1/CAC/w1_practical\\(1\\).yml\" \"c:/Users/Admin/Documents/GitHub/cloud-engineering/cloud-automation-concepts/Week 1/Uitwerking/w1_practical.yml\")",
+      "Bash(cp \"/tmp/cac-extract/week2/CAC/w2_base_multi_az.yml\" \"c:/Users/Admin/Documents/GitHub/cloud-engineering/cloud-automation-concepts/Week 2/Uitwerking/w2_base_multi_az.yml\")",
+      "Bash(cp \"/tmp/cac-extract/week3/CAC/w2_base_multi_az.yml\" \"c:/Users/Admin/Documents/GitHub/cloud-engineering/cloud-automation-concepts/Week 3/Uitwerking/w2_base_multi_az.yml\")",
+      "Bash(py -3 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(pip show:*)",
+      "Bash(where cfn-lint:*)"
+    ]
+  }
+}

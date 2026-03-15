@@ -1,0 +1,36 @@
+# A description of what your template does.
+Description: My first VPC (10.0.0.0/16) with a public subnet (10.0.10.0/24).
+# Parameters you can set in CloudFormation when you roll out your stack.
+Parameters:
+  VPCCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC.
+    Type: String
+    Default: 10.0.0.0/16
+  PUBLICSUBNETCIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet
+    Type: String
+    Default: 10.0.10.0/24
+# The cloud resources your template is going to create.
+Resources:
+  MyFirstVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      Tags: # Good practice is to add tags!
+        - Key: Name
+          Value: MyFirstVPC
+  MyFirstSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: !Ref PUBLICSUBNETCIDR
+      MapPublicIpOnLaunch: yes # Important! See documentation.
+      VpcId: !Ref MyFirstVPC
+      Tags:
+        - Key: Name
+          Value: MyFirstSubnet
+Outputs:
+  VPCRef:
+    Description: Reference to the VPC
+    Value: !Ref MyFirstVPC
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", VPC ] ] # Fancy way of making the exported variable called "MyBase:VPC"
