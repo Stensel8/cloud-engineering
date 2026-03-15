@@ -175,7 +175,7 @@ WebInstance:
 
 Genereer een sleutelpaar lokaal in deze map:
 
-```bash
+```powershell
 ssh-keygen -t ed25519 -f id_ed25519 -C "week1-cloud-engineering"
 ```
 
@@ -183,11 +183,8 @@ Dit genereert twee bestanden: `id_ed25519` (private) en `id_ed25519.pub` (public
 
 Importeer daarna de publieke sleutel naar AWS onder een naam:
 
-```bash
-aws ec2 import-key-pair \
-  --key-name week1-key \
-  --public-key-material fileb://id_ed25519.pub \
-  --region us-east-1
+```
+aws ec2 import-key-pair --key-name week1-key --public-key-material fileb://id_ed25519.pub --region us-east-1
 ```
 
 **Hoe het verder werkt:** bij het aanmaken van de stack via `aws cloudformation create-stack` geef je `week1-key` mee als parameter. AWS zoekt dan de bijbehorende publieke sleutel op en plaatst die automatisch in `~/.ssh/authorized_keys` op de EC2-instance. De private key verlaat je laptop nooit. Je kunt daarna direct verbinden.
@@ -196,17 +193,17 @@ aws ec2 import-key-pair \
 
 Haal het publieke IP op uit de stack outputs (zie Deployment) en verbind:
 
-```bash
+```powershell
 ssh -i id_ed25519 ec2-user@<publiek-ip>
 ```
 
-Of voeg een shortcut toe aan `~/.ssh/config`:
+Of voeg een shortcut toe aan `C:\Users\<jouw-naam>\.ssh\config`:
 
 ```
 Host week1
     HostName <publiek-ip>
     User ec2-user
-    IdentityFile ~/Documents/GitHub/cloud-engineering/cloud-automation-concepts/Week\ 1/Uitwerking/id_ed25519
+    IdentityFile C:\Users\<jouw-naam>\Documents\GitHub\cloud-engineering\cloud-automation-concepts\Week 1\Uitwerking\id_ed25519
 ```
 
 Daarna volstaat `ssh week1`.
@@ -220,12 +217,8 @@ Voer deze commando's uit vanuit de map `Week 1/Uitwerking/`. Vervang `<jouw-key-
 <details>
 <summary>Stack aanmaken</summary>
 
-```bash
-aws cloudformation create-stack \
-  --stack-name stensel-stack \
-  --template-body file://stensel-stack.yaml \
-  --parameters ParameterKey=KeyName,ParameterValue=<jouw-key-naam> \
-  --region us-east-1
+```
+aws cloudformation create-stack --stack-name stensel-stack --template-body file://stensel-stack.yaml --parameters ParameterKey=KeyName,ParameterValue=week1-key --region us-east-1
 ```
 
 </details>
@@ -233,10 +226,8 @@ aws cloudformation create-stack \
 <details>
 <summary>Status controleren</summary>
 
-```bash
-aws cloudformation describe-stacks \
-  --stack-name stensel-stack \
-  --region us-east-1
+```
+aws cloudformation describe-stacks --stack-name stensel-stack --region us-east-1
 ```
 
 </details>
@@ -244,11 +235,8 @@ aws cloudformation describe-stacks \
 <details>
 <summary>Outputs bekijken (IP-adres en nginx-URL)</summary>
 
-```bash
-aws cloudformation describe-stacks \
-  --stack-name stensel-stack \
-  --region us-east-1 \
-  --query "Stacks[0].Outputs"
+```
+aws cloudformation describe-stacks --stack-name stensel-stack --region us-east-1 --query "Stacks[0].Outputs"
 ```
 
 </details>
@@ -256,10 +244,8 @@ aws cloudformation describe-stacks \
 <details>
 <summary>Events bekijken (bij fouten)</summary>
 
-```bash
-aws cloudformation describe-stack-events \
-  --stack-name stensel-stack \
-  --region us-east-1
+```
+aws cloudformation describe-stack-events --stack-name stensel-stack --region us-east-1
 ```
 
 </details>
@@ -267,12 +253,8 @@ aws cloudformation describe-stack-events \
 <details>
 <summary>Stack bijwerken (na wijzigingen in de template)</summary>
 
-```bash
-aws cloudformation update-stack \
-  --stack-name stensel-stack \
-  --template-body file://stensel-stack.yaml \
-  --parameters ParameterKey=KeyName,ParameterValue=<jouw-key-naam> \
-  --region us-east-1
+```
+aws cloudformation update-stack --stack-name stensel-stack --template-body file://stensel-stack.yaml --parameters ParameterKey=KeyName,ParameterValue=week1-key --region us-east-1
 ```
 
 </details>
@@ -280,10 +262,8 @@ aws cloudformation update-stack \
 <details>
 <summary>Stack verwijderen</summary>
 
-```bash
-aws cloudformation delete-stack \
-  --stack-name stensel-stack \
-  --region us-east-1
+```
+aws cloudformation delete-stack --stack-name stensel-stack --region us-east-1
 ```
 
 </details>
