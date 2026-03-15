@@ -160,6 +160,20 @@ Resources:
 
 
 # -------------------------------------------------------------------
+# Outputs
+# -------------------------------------------------------------------
+Outputs:
+
+  PubliekIP:
+    Description: Publiek IP-adres van de EC2-instance
+    Value: !GetAtt WebInstance.PublicIp
+
+  NginxURL:
+    Description: Directe URL naar nginx
+    Value: !Sub "http://${WebInstance.PublicIp}"
+
+
+# -------------------------------------------------------------------
 # CloudFormation Commands
 # -------------------------------------------------------------------
 # Aanmaken:

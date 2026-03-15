@@ -75,3 +75,80 @@ De beveiligingsgroep bepaalt welk verkeer de EC2-instance mag bereiken. Minimaal
 De EC2-instance draait in het publieke subnet en installeert nginx automatisch via UserData.
 
 <!-- Voeg hier de code toe nadat je de EC2-instance aan de template hebt toegevoegd -->
+
+---
+
+## Deployment
+
+Voer deze commando's uit vanuit de map `Week 1/Uitwerking/`. Vervang `<jouw-key-naam>` door de naam van je bestaande EC2 key pair.
+
+<details>
+<summary>Stack aanmaken</summary>
+
+```bash
+aws cloudformation create-stack \
+  --stack-name stensel-stack \
+  --template-body file://stensel-stack.yaml \
+  --parameters ParameterKey=KeyName,ParameterValue=<jouw-key-naam> \
+  --region us-east-1
+```
+
+</details>
+
+<details>
+<summary>Status controleren</summary>
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name stensel-stack \
+  --region us-east-1
+```
+
+</details>
+
+<details>
+<summary>Outputs bekijken (IP-adres en nginx-URL)</summary>
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name stensel-stack \
+  --region us-east-1 \
+  --query "Stacks[0].Outputs"
+```
+
+</details>
+
+<details>
+<summary>Events bekijken (bij fouten)</summary>
+
+```bash
+aws cloudformation describe-stack-events \
+  --stack-name stensel-stack \
+  --region us-east-1
+```
+
+</details>
+
+<details>
+<summary>Stack bijwerken (na wijzigingen in de template)</summary>
+
+```bash
+aws cloudformation update-stack \
+  --stack-name stensel-stack \
+  --template-body file://stensel-stack.yaml \
+  --parameters ParameterKey=KeyName,ParameterValue=<jouw-key-naam> \
+  --region us-east-1
+```
+
+</details>
+
+<details>
+<summary>Stack verwijderen</summary>
+
+```bash
+aws cloudformation delete-stack \
+  --stack-name stensel-stack \
+  --region us-east-1
+```
+
+</details>
