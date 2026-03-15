@@ -269,3 +269,19 @@ Host week1
 ```
 
 Daarna volstaat `ssh week1`.
+
+---
+
+## Bijlagen
+
+### Screenshots
+
+![CloudFormation stack deployed](screenshot-stack-deployed.avif)
+
+![Uitwerking overzicht](image.avif)
+
+### Schermopname
+
+De volledige uitwerking als schermopname (WebM/AV1):
+
+[demo-week1.webm](demo-week1.webm)
