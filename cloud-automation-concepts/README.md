@@ -18,8 +18,9 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 | Week | Onderwerp | Map |
 |------|-----------|-----|
 | Week 1 | Introductie & CloudFormation | [Week 1/](Week%201/) |
-
-Meer weken worden toegevoegd naarmate de cursus vordert.
+| Week 2 | Networking en Elasticity | [Week 2/](Week%202/) |
+| Week 3 | Databases en Storage | [Week 3/](Week%203/) |
+| Week 4 | File Storage en Backup | [Week 4/](Week%204/) |
 
 ---
 
@@ -31,16 +32,16 @@ Het lesmateriaal van Saxion verwijst naar de extensie [cform-VSCode](https://git
 
 Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter** (`kddejong.vscode-cfn-lint`). Deze extensie wordt actief onderhouden door AWS, kent alle huidige resource-typen en intrinsieke functies (`!Ref`, `!Sub`, `!GetAtt`, enzovoort), en toont fouten direct in de editor.
 
-**Stap 1 — Extensies installeren**
+**Stap 1: extensies installeren**
 
 Bij het openen van deze repo toont VS Code automatisch een popup om de aanbevolen extensies te installeren. Klik op *Install*. Dit installeert:
 
-- `kddejong.vscode-cfn-lint` — CloudFormation Linter
-- `redhat.vscode-yaml` — YAML-ondersteuning (vereist door de linter)
+- `kddejong.vscode-cfn-lint` (CloudFormation Linter)
+- `redhat.vscode-yaml` (YAML-ondersteuning, vereist door de linter)
 
-**Stap 2 — cfn-lint installeren**
+**Stap 2: cfn-lint installeren**
 
-De extensie heeft het `cfn-lint` commando-regelprogramma nodig. Installeer het via pip:
+De extensie werkt samen met `cfn-lint`, dat je apart installeert via pip:
 
 ```bash
 pip install -r requirements.txt
@@ -52,7 +53,7 @@ Verifieer daarna:
 cfn-lint --version
 ```
 
-Herstart VS Code als de extensie cfn-lint nog niet automatisch oppikt.
+Herstart VS Code als de extensie cfn-lint na installatie niet automatisch detecteert.
 
 ---
 

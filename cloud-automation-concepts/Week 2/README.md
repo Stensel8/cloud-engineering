@@ -2,7 +2,7 @@
 
 ## Onderwerpen
 
-Deze week duiken we in routering voor private subnets en hoe je een applicatie load balanced. We leren ook hoe je CloudFormation-templates opsplitst in kleinere modules en hoe je een auto scaling group inricht.
+Deze week duiken we in routering voor private subnets en hoe je load balancing toepast op een applicatie. We leren ook hoe je CloudFormation-templates opsplitst in kleinere modules en hoe je een auto scaling group inricht.
 
 ## Leerdoelen
 

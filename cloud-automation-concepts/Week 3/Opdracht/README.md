@@ -11,7 +11,7 @@ Pas je CloudFormation-template aan zodat:
 3. Een CloudWatch-alarm wordt aangemaakt dat triggert wanneer de `NetworkOut` van de EC2-instance boven de 1000 bytes uitkomt gedurende 1 minuut
 4. De alarm een bericht publiceert naar het SNS-topic
 
-**Test de alarm** door de EC2-instance te stoppen en te controleren of je een e-mail ontvangt.
+**Test het alarm** door de EC2-instance te stoppen en te controleren of je een e-mail ontvangt.
 
 ---
 
