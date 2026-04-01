@@ -45,26 +45,15 @@ Bouw voort op Assignment 1. Dockeriseer de applicatie en richt een Docker-infras
 
 **Deliverables:** Templates en scripts, plus een rapport (~3 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
-- [ ] **REQ-08** — Applicatie is gedockeriseerd
-  → *(Dockerfile nog toe te voegen)*
-
-- [ ] **REQ-09** — Applicatie wordt gebouwd op een Buildserver in het private subnet
-  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (EC2 in private subnet, bouwt en pusht images)
-
-- [ ] **REQ-10** — Docker Compose wordt gebruikt om services te definiëren en uit te rollen
-  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (Docker Compose geïnstalleerd) · *(docker-compose.yml nog toe te voegen)*
-
-- [ ] **REQ-11** — Nightly builds op de Buildserver
-  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) · *(cron-job nog toe te voegen)*
-
-- [ ] **REQ-12** — Images worden gepusht naar AWS ECR tijdens de nightly builds
-  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (ECR push in UserData)
-
-- [ ] **REQ-13** — Buildserver is geconfigureerd als Swarm Manager
-  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (`docker swarm init`, token op EFS)
-
-- [ ] **REQ-14** — ASG-instances zijn geconfigureerd als Swarm Workers
-  → [`dockerasg.yml`](Assignment%202%20-%20Docker/dockerasg.yml) (leest join-token van EFS, voegt toe aan Swarm)
+| Requirement | Bewijs |
+|---|---|
+| REQ-08 - Applicatie is gedockeriseerd |  |
+| REQ-09 - Applicatie wordt gebouwd op een Buildserver in het private subnet |  |
+| REQ-10 - Docker Compose voor services en uitrol |  |
+| REQ-11 - Nightly builds op de Buildserver |  |
+| REQ-12 - Images worden gepusht naar AWS ECR |  |
+| REQ-13 - Buildserver als Swarm Manager |  |
+| REQ-14 - ASG-instances als Swarm Workers |  |
 
 ### Assignment 3: Cloud Orchestration
 
@@ -74,29 +63,16 @@ Bouw voort op Assignments 1 en 2. Gebruik Terraform en Ansible in een multi-clou
 
 **Deliverables:** Templates en scripts, plus een rapport (~3 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
-- [ ] **REQ-15** — AWS-resources worden uitgerold met Terraform
-  → [`terraform/modules/aws/`](Assignment%203%20-%20Orchestration/terraform/modules/aws/) (CloudFormation-stacks via Terraform-wrappers)
-
-- [ ] **REQ-16** — Applicatie uitgerold op GCP via Terraform
-  → [`terraform/modules/gcp/`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/) (GKE, netwerk, loadbalancer)
-
-- [ ] **REQ-17** — Gebruikers bereiken de applicatie via één extern IP-adres
-  → [`terraform/modules/gcp/loadbalancer/main.tf`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/loadbalancer/main.tf) (GCP Global HTTP Load Balancer)
-
-- [ ] **REQ-18** — Docker-images gehost op Artifact Registry
-  → [`terraform/modules/gcp/artifact_registry/main.tf`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/artifact_registry/main.tf)
-
-- [ ] **REQ-19** — Kubernetes-cluster op geautomatiseerde manier uitgerold op GCP
-  → [`terraform/modules/gcp/gke_cluster/main.tf`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/gke_cluster/main.tf) (GKE cluster)
-
-- [ ] **REQ-20** — Kubernetes-cluster: Master met 5 replica's van de applicatie
-  → [`ansible/roles/gke_config/templates/deployment.yml.j2`](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/templates/deployment.yml.j2) (replicas: 5)
-
-- [ ] **REQ-21** — Ansible configureert het Kubernetes-cluster
-  → [`ansible/playbooks/gke_config.yml`](Assignment%203%20-%20Orchestration/ansible/playbooks/gke_config.yml) · [`ansible/roles/gke_config/`](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/)
-
-- [ ] **REQ-22** — Ansible verzamelt logbestanden van de applicatie
-  → [`ansible/playbooks/log_collector.yml`](Assignment%203%20-%20Orchestration/ansible/playbooks/log_collector.yml) · [`ansible/roles/log_collection/`](Assignment%203%20-%20Orchestration/ansible/roles/log_collection/)
+| Requirement | Bewijs |
+|---|---|
+| REQ-15 - AWS-resources uitgerold met Terraform |  |
+| REQ-16 - Applicatie uitgerold op GCP via Terraform |  |
+| REQ-17 - Gebruikers bereiken applicatie via één extern IP-adres |  |
+| REQ-18 - Docker-images gehost op Artifact Registry |  |
+| REQ-19 - Kubernetes-cluster op GCP |  |
+| REQ-20 - Kubernetes-cluster: Master met 5 replica's |  |
+| REQ-21 - Ansible configureert het Kubernetes-cluster |  |
+| REQ-22 - Ansible verzamelt logbestanden |  |
 
 ---
 
