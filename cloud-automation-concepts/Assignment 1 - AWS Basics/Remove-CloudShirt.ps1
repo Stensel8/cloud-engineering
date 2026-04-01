@@ -58,14 +58,41 @@ function Write-Section {
 }
 
 # ---------------------------------------------------------------------------
-# Stap 1: controleer of AWS-credentials beschikbaar zijn
+# Stap 1: credentials inlezen uit aws.txt (indien aanwezig)
+#
+# aws.txt formaat (NIET committen, staat in .gitignore):
+#   aws_access_key_id=ASIA...
+#   aws_secret_access_key=...
+#   aws_session_token=...
 # ---------------------------------------------------------------------------
 Write-Section "Vooraf controleren"
+
+$AwsFile = Join-Path $PSScriptRoot "aws.txt"
+
+if (Test-Path $AwsFile) {
+    $AwsData = @{}
+    Get-Content $AwsFile | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]+)\s*=\s*(.+)\s*$') {
+            $AwsData[$Matches[1].Trim()] = $Matches[2].Trim()
+        }
+    }
+
+    if ($AwsData.ContainsKey('aws_access_key_id') -and
+        $AwsData.ContainsKey('aws_secret_access_key') -and
+        $AwsData.ContainsKey('aws_session_token')) {
+
+        $env:AWS_ACCESS_KEY_ID     = $AwsData['aws_access_key_id']
+        $env:AWS_SECRET_ACCESS_KEY = $AwsData['aws_secret_access_key']
+        $env:AWS_SESSION_TOKEN     = $AwsData['aws_session_token']
+        $env:AWS_DEFAULT_REGION    = $Region
+        Write-Output "Credentials geladen uit aws.txt."
+    }
+}
 
 $null = aws sts get-caller-identity --region $Region 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Output "FOUT: geen geldige AWS-credentials gevonden."
-    Write-Output "Stel credentials in via omgevingsvariabelen of aws configure."
+    Write-Output "Zorg dat aws.txt aanwezig is of stel credentials in via omgevingsvariabelen."
     exit 1
 }
 
