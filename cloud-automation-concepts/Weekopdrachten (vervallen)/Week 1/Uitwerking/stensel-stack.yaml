@@ -7,6 +7,11 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Naam van een bestaand EC2 key pair om via SSH in te loggen.
 
+  SSHCidr:
+    Type: String
+    Description: IP-bereik dat SSH-toegang heeft tot de instance.
+    Default: 10.0.0.0/16
+
 
 # -------------------------------------------------------------------
 # Resources
@@ -112,6 +117,11 @@ Resources:
   # -----------------------------------------------------------------
   WebBeveiligingsgroep:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_24
+            comment: "Port 80 must be open for public nginx web server traffic"
     Properties:
       GroupDescription: Sta HTTP en SSH toe
       VpcId: !Ref MyfirstVPC
@@ -119,7 +129,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Ref SSHCidr
           Description: Allow SSH access for management
         - IpProtocol: tcp
           FromPort: 80

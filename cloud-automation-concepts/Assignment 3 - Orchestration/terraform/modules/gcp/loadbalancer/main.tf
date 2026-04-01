@@ -2,11 +2,21 @@ resource "google_compute_global_address" "ip" {
   name = "cloudshirt-global-ip"
 }
 
+resource "google_compute_health_check" "http" {
+  name = "cloudshirt-http-health-check"
+
+  http_health_check {
+    port         = 80
+    request_path = "/"
+  }
+}
+
 resource "google_compute_backend_service" "backend" {
-  name        = "cloudshirt-backend"
-  protocol    = "HTTP"
-  port_name   = "http"
-  timeout_sec = 30
+  name          = "cloudshirt-backend"
+  protocol      = "HTTP"
+  port_name     = "http"
+  timeout_sec   = 30
+  health_checks = [google_compute_health_check.http.id]
 }
 
 resource "google_compute_url_map" "url_map" {

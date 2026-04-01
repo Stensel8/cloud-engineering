@@ -13,10 +13,10 @@ gcp_repo_name: "cloudshirt-docker"
 image_repo: "{{ gcp_region }}-docker.pkg.dev/{{ gcp_project_id }}/{{ gcp_repo_name }}"
 
 # ==== Database (AWS RDS) ====
-# Tip: zet db_password later in Ansible Vault
+# db_password must be set via Ansible Vault or --extra-vars, never in plaintext here
 rds_endpoint: "cloudshirt-db.ctuckmei09i6.us-east-1.rds.amazonaws.com"
 db_user: "csadmin"
-db_password: "Welkom123!"
+db_password: "{{ vault_db_password }}"
 
 # ==== App images & poorten ====
 deployments:

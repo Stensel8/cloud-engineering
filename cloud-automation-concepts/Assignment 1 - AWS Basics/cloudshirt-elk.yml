@@ -8,7 +8,11 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Name of an existing EC2 KeyPair for SSH access
     Default: vockey
-    
+  SSHCidr:
+    Description: The IP range allowed to SSH to the ELK instance
+    Type: String
+    Default: 10.0.0.0/16
+
 Resources:
   ## =========================
   ## Security Group
@@ -22,7 +26,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: !Ref SSHCidr
           Description: Allow SSH access
         - IpProtocol: tcp
           FromPort: 9200

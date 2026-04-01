@@ -4,8 +4,9 @@ resource "google_container_cluster" "primary" {
   network     = var.vpc_id
   subnetwork  = var.subnet_id
 
-  remove_default_node_pool = true
-  initial_node_count       = 1
+  remove_default_node_pool  = true
+  initial_node_count        = 1
+  enable_intranode_visibility = true
 
   ip_allocation_policy {}
 
@@ -23,8 +24,14 @@ resource "google_container_cluster" "primary" {
 
   master_authorized_networks_config {
     cidr_blocks {
-      cidr_block   = "0.0.0.0/0"
-      display_name = "all"
+      cidr_block   = "10.0.0.0/16"
+      display_name = "vpc-internal"
+    }
+  }
+
+  master_auth {
+    client_certificate_config {
+      issue_client_certificate = false
     }
   }
 
@@ -45,6 +52,10 @@ resource "google_container_cluster" "primary" {
 
   workload_identity_config {
     workload_pool = "${data.google_client_config.current.project}.svc.id.goog"
+  }
+
+  authenticator_groups_config {
+    security_group = "gke-security-groups@${data.google_client_config.current.project}.iam.gserviceaccount.com"
   }
 
   resource_labels = {

@@ -4,8 +4,6 @@ resource "aws_cloudformation_stack" "rds" {
   notification_arns = var.sns_arn != "" ? [var.sns_arn] : []
 
   parameters = {
-    DBUsername         = "csadmin"
-    DBPassword         = var.db_password
     DBAllocatedStorage = "30"
   }
 

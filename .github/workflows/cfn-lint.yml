@@ -53,7 +53,7 @@ jobs:
             exit_code=0
             output=""
           else
-            output=$(cfn-lint --format parseable "${files[@]}")
+            output=$(cfn-lint --format parseable "${files[@]}" 2>&1)
             exit_code=$?
           fi
 

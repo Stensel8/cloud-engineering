@@ -38,10 +38,9 @@ module "base" {
 }
 
 module "rds" {
-  source      = "./modules/aws/rds-stack"
-  db_password = var.db_password
-  sns_arn     = var.cfn_notification_sns_arn
-  depends_on  = [module.base]
+  source     = "./modules/aws/rds-stack"
+  sns_arn    = var.cfn_notification_sns_arn
+  depends_on = [module.base]
 }
 
 module "efs" {

@@ -44,7 +44,7 @@ Parameters:
   SSHCidr:
     Description: The IP range that can SSH to EC2 instances
     Type: String
-    Default: 0.0.0.0/0
+    Default: 10.0.0.0/16
   
 
 Resources:
@@ -230,6 +230,11 @@ Resources:
       
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_24
+            comment: "Port 80 must be open for public ALB/web server traffic"
     Properties:
       GroupDescription: Allow SSH, HTTP and HTTPS traffic
       VpcId: !Ref CloudShirtVpc

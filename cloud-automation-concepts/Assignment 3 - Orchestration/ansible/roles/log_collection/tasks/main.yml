@@ -33,10 +33,10 @@
     aws logs describe-log-groups --query "logGroups[*].logGroupName" --output text > aws_loggroups.txt
     aws logs filter-log-events --log-group-name /aws/cloudshirt/app --output text > collected_logs/aws_cloudshirt.log
   register: aws_logs
-  ignore_errors: yes
+  ignore_errors: true
 
 # Upload logs to centralized storage
 - name: Upload logs to GCS bucket
   ansible.builtin.shell: |
-    gsutil cp ./collected_logs/*.log gs://cloudshirt-central-logs/
-  ignore_errors: yes
+    gsutil cp ./collected_logs/*.log gs://{{ log_bucket }}/
+  ignore_errors: true

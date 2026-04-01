@@ -6,7 +6,7 @@
     - name: Retrieve Terraform outputs
       command: terraform output -json
       args:
-        chdir: "{{ lookup('env','HOME') }}/CloudShirt/Cloud Orchestration/terraform"
+        chdir: "{{ playbook_dir }}/../../terraform"
       register: tf_outputs
 
     - name: Set base Terraform facts
@@ -45,14 +45,14 @@
           - "Image Repo: {{ image_repo }}"
 
     - name: Authenticate with GCP
-      command: gcloud auth activate-service-account --key-file="{{ lookup('env','HOME') }}/CloudShirt/Cloud Orchestration/terraform/gcp-service-account.json"
+      command: gcloud auth activate-service-account --key-file="{{ playbook_dir }}/../../terraform/gcp-service-account.json"
 
     - name: Get GKE credentials
       command: gcloud container clusters get-credentials {{ cluster_name }} --region {{ gcp_region }} --project {{ gcp_project }}
 
     - name: Create namespace
       command: kubectl create namespace {{ namespace }}
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Create or update RDS secret
       kubernetes.core.k8s:
@@ -65,7 +65,7 @@
             namespace: "{{ namespace }}"
           type: Opaque
           stringData:
-            connection: "Server={{ rds_endpoint }};Database=Microsoft.eShopOnWeb.CatalogDb;User Id=csadmin;Password=Welkom123!"
+            connection: "Server={{ rds_endpoint }};Database=Microsoft.eShopOnWeb.CatalogDb;User Id={{ db_user }};Password={{ db_password }}"
 
     - name: Deploy CloudShirt apps
       include_role:

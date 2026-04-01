@@ -61,6 +61,11 @@ Resources:
 
   CloudShirtRDSInstance:
     Type: AWS::RDS::DBInstance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_157
+            comment: "SQL Server Express (sqlserver-ex) does not support Multi-AZ"
     Properties:
       DBInstanceIdentifier: cloudshirt-db
       Engine: sqlserver-ex
