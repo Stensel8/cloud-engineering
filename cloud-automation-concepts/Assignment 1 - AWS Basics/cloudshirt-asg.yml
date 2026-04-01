@@ -22,7 +22,7 @@ Parameters:
     Default: vockey
   RepoUrl:
     Type: String
-    Default: https://github.com/looking4ward/CloudShirt.git
+    Default: https://github.com/stensel8/CloudShirt.git
     Description: Git repository URL for the CloudShirt solution
   RepoBranch:
     Type: String
