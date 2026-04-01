@@ -70,7 +70,7 @@ Resources:
         InstanceType: !Ref InstanceType
         KeyName: !Ref KeyName
         SecurityGroupIds:
-          - !ImportValue base-stack:InstanceSG
+          - !ImportValue cloudshirt-network:InstanceSG
         UserData:
           Fn::Base64: !Sub
             - |
@@ -82,6 +82,13 @@ Resources:
               export AWS_SESSION_TOKEN=${SessionToken}
               export AWS_DEFAULT_REGION=us-east-1
               export AWS_ACCOUNT_ID=${AccountId}
+
+              # ── RDS-credentials ophalen uit Secrets Manager ───────────────
+              SECRET=$(aws secretsmanager get-secret-value \
+                --secret-id "${RDS_SECRET_ARN}" \
+                --query SecretString --output text)
+              DBUsername=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['username'])")
+              DBPassword=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['password'])")
 
               # ── Systeem bijwerken en basispakketten installeren ───────────
               yum update -y
@@ -106,7 +113,7 @@ Resources:
               # Sla configuratiewaarden op zodat scripts ze kunnen lezen
               echo "${RDSENDPOINT}" > /mnt/efs/rds-endpoint
               echo "${BucketName}"  > /mnt/efs/s3-name
-              echo "${DBPassword}"  > /mnt/efs/db-password
+              echo "$DBPassword"  > /mnt/efs/db-password
 
               # Map voor nginx-logs op EFS aanmaken
               mkdir -p /mnt/efs/nginx
@@ -150,8 +157,8 @@ Resources:
                 cd $APPROOT/src/src/Web
 
                 # Verbindingsstrings aanpassen naar de RDS-instantie (REQ-04)
-                sed -i 's|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=${DBUsername};Password=${DBPassword};Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|' appsettings.json
-                sed -i 's|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=${DBUsername};Password=${DBPassword};Initial Catalog=Microsoft.eShopOnWeb.Identity;|' appsettings.json
+                sed -i "s|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|" appsettings.json
+                sed -i "s|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.Identity;|" appsettings.json
 
                 dotnet restore
                 dotnet publish -c Release -o $PUBLISH
@@ -252,11 +259,10 @@ Resources:
               echo "0 2 * * * ec2-user /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1" \
                 > /etc/cron.d/cloudshirt-export
 
-            - RDSENDPOINT: !ImportValue rds-stack:RDSEndpointAddress
-              DBUsername:  !ImportValue rds-stack:RDSUsername
-              DBPassword:  !ImportValue rds-stack:RDSPassword
-              EFS_DNS:     !ImportValue efs-stack:EFSDNS
-              ELKPublicIP: !ImportValue elk-stack:ELKPublicIP
+            - RDSENDPOINT:    !ImportValue cloudshirt-rds:RDSEndpointAddress
+              RDS_SECRET_ARN: !ImportValue cloudshirt-rds:RDSSecretArn
+              EFS_DNS:        !ImportValue cloudshirt-efs:EFSDNS
+              ELKPublicIP:    !ImportValue cloudshirt-elk:ELKPublicIP
 
   # -------------------------------------------------------------------------
   # WebInstance1 — publiek subnet in AZ1 (us-east-1a)
@@ -267,7 +273,7 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref WebServerLaunchTemplate
         Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
-      SubnetId: !ImportValue base-stack:CloudShirtFirstSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtFirstSubnet
       Tags:
         - Key: Name
           Value: CloudShirt-Web-1
@@ -288,7 +294,7 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref WebServerLaunchTemplate
         Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
-      SubnetId: !ImportValue base-stack:CloudShirtSecondSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       Tags:
         - Key: Name
           Value: CloudShirt-Web-2

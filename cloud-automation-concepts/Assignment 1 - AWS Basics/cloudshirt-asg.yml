@@ -39,7 +39,7 @@ Resources:
         KeyName: !Ref KeyName
         ImageId: ami-0254b2d5c4c472488
         SecurityGroupIds:
-          - !ImportValue base-stack:InstanceSG
+          - !ImportValue cloudshirt-network:InstanceSG
         UserData:
           Fn::Base64: !Sub
             - |
@@ -49,6 +49,13 @@ Resources:
               export AWS_SESSION_TOKEN=${SessionToken}
               export AWS_DEFAULT_REGION=us-east-1
               export AWS_ACCOUNT_ID=${AccountId}
+
+              # ── RDS-credentials ophalen uit Secrets Manager ───────────────
+              SECRET=$(aws secretsmanager get-secret-value \
+                --secret-id "${RDS_SECRET_ARN}" \
+                --query SecretString --output text)
+              DBUsername=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['username'])")
+              DBPassword=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['password'])")
 
               yum update -y
               yum install -y gcc git unzip curl amazon-linux-extras amazon-efs-utils unixODBC unixODBC-devel
@@ -104,8 +111,8 @@ Resources:
                 set -e
                 git clone --branch ${RepoBranch} ${RepoUrl} $APPROOT/src
                 cd $APPROOT/src/src/Web
-                sed -i 's/Server.*CatalogDb;/Server=${RDSENDPOINT},1433;User ID=${DBUsername};Password=${DBPassword};Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;/' appsettings.json
-                sed -i 's/Server.*Identity;/Server=${RDSENDPOINT},1433;User ID=${DBUsername};Password=${DBPassword};Initial Catalog=Microsoft.eShopOnWeb.Identity;/' appsettings.json
+                sed -i "s|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|" appsettings.json
+                sed -i "s|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.Identity;|" appsettings.json
                 dotnet restore
                 dotnet publish -c Release -o $PUBLISH
               "
@@ -212,11 +219,10 @@ Resources:
   
               chmod +x configure-aws.sh
               
-            - RDSENDPOINT: !ImportValue rds-stack:RDSEndpointAddress
-              DBUsername: !ImportValue rds-stack:RDSUsername
-              DBPassword: !ImportValue rds-stack:RDSPassword
-              EFS_DNS: !ImportValue efs-stack:EFSDNS
-              ELKPublicIP: !ImportValue elk-stack:ELKPublicIP
+            - RDSENDPOINT:    !ImportValue cloudshirt-rds:RDSEndpointAddress
+              RDS_SECRET_ARN: !ImportValue cloudshirt-rds:RDSSecretArn
+              EFS_DNS:        !ImportValue cloudshirt-efs:EFSDNS
+              ELKPublicIP:    !ImportValue cloudshirt-elk:ELKPublicIP
 
   CloudShirtASG:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -229,8 +235,8 @@ Resources:
       MaxSize: 3
       DesiredCapacity: 2
       VPCZoneIdentifier: 
-        - !ImportValue base-stack:CloudShirtFirstSubnet
-        - !ImportValue base-stack:CloudShirtSecondSubnet
+        - !ImportValue cloudshirt-network:CloudShirtFirstSubnet
+        - !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       TargetGroupARNs:
         - !ImportValue WebTargetGroup
       Tags:
