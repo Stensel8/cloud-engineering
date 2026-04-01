@@ -11,7 +11,7 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. cloudshirt-network  -- VPC, subnetten, gateways
+      1. base-stack           -- VPC, subnetten, gateways
       2. cloudshirt-efs      -- Elastic File System
          cloudshirt-elk      -- ELK monitoring stack
          cloudshirt-rds      -- RDS SQL Server database
@@ -243,7 +243,7 @@ Write-Section "Deployment starten"
 # 1. Netwerk-basisinfrastructuur (VPC, subnetten, gateways, security groups)
 #    Alle andere stacks zijn hiervan afhankelijk.
 Write-Output "Stap 1/6 - Netwerk"
-Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
+Invoke-StackDeployment -StackName "base-stack" -TemplateFile ".\cloudshirt-network.yml"
 
 # 2. Gedeelde services (afhankelijk van het netwerk)
 Write-Output "Stap 2/6 - Gedeelde services (EFS, ELK, RDS)"
