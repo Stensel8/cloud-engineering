@@ -18,6 +18,23 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 > [!NOTE]
 > De weekopdrachten (Week 1-4) zijn vervallen als inleverpunt. Ze staan nog in de repo als referentie en oefenmateriaal, maar het portfolio bestaat uit de drie onderstaande assignments.
 
+> [!IMPORTANT]
+> Deze module is direct afhankelijk van de CloudShirt-repository. De implementatie en bewijsvoering worden bijgehouden in code, configuratie en documentatie in die repository (niet via Brightspace-exportbestanden):
+> https://github.com/looking4ward/CloudShirt
+
+### Cross-referentie met CloudShirt
+
+CloudShirt is de applicatiebasis voor deze module:
+
+- Oorsprong: geforkte/basisvariant vanuit een Saxion-docentenapplicatie.
+- Doorontwikkeling: omgebouwd en gemoderniseerd door mij (Stensel8).
+- Toepassing: gebruikt in de drie assignments binnen Cloud Automation Concepts om requirements aantoonbaar af te vinken.
+
+Samenspel tussen de repositories:
+
+- [CloudShirt](https://github.com/looking4ward/CloudShirt): applicatie, infrastructuurbestanden en deploymentuitwerking.
+- [cloud-automation-concepts](https://github.com/Stensel8/cloud-engineering/tree/main/cloud-automation-concepts): leerdoelen, opdrachtkaders en requirementstructuur.
+
 ### Assignment 1: AWS Basics
 
 > Bestanden in [Assignment 1 - AWS Basics/](Assignment%201%20-%20AWS%20Basics/)
