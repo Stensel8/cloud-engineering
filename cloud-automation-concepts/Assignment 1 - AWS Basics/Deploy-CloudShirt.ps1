@@ -11,7 +11,7 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. cloudshirt-network  -- VPC, subnetten, gateways
+      1. base-stack           -- VPC, subnetten, gateways
       2. cloudshirt-efs      -- Elastic File System
          cloudshirt-elk      -- ELK monitoring stack
          cloudshirt-rds      -- RDS SQL Server database
@@ -228,6 +228,10 @@ function Invoke-StackDeployment {
 
         Write-Output "    Wachten op aanmaken..."
         aws cloudformation wait stack-create-complete --stack-name $StackName
+        if ($LASTEXITCODE -ne 0) {
+            Write-Output "    FOUT: stack '$StackName' heeft ROLLBACK_COMPLETE bereikt. Controleer de CloudFormation-events in de AWS Console."
+            exit 1
+        }
         Write-Output "    Aangemaakt."
     }
 }
