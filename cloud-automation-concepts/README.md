@@ -28,14 +28,14 @@ Bouw een AWS CloudFormation-oplossing die alle negen leerdoelen dekt en voldoet 
 
 | Requirement | Bewijs |
 |---|---|
-| REQ-01 - High availability over meerdere AZ's via een URL | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-loadbalancer.yml) |
-| REQ-02 - Autoscaling tijdens piekuren (18:00-20:00 Eastern) | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-asg.yml) |
-| REQ-03 - EFS voor dagelijkse opslag van webserverlogs | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-efs.yml) |
-| REQ-04 - RDS via IaC | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-rds.yml) |
-| REQ-05 - Monitoringoplossing (ELK) via IaC | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-elk.yml) |
-| REQ-06 - Logs zichtbaar in Elastic Stack via Filebeat (optioneel) | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) |
-| REQ-07 - Scriptmatige export ordertabel naar S3 | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/export-orders.sh) |
-| REQ-08 - AWS serverless-applicatie | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-s3.yml) |
+| REQ-01 - High availability over meerdere AZ's via een URL | [cloudshirt-loadbalancer.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-loadbalancer.yml) |
+| REQ-02 - Autoscaling tijdens piekuren (18:00-20:00 Eastern) | [cloudshirt-asg.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-asg.yml) |
+| REQ-03 - EFS voor dagelijkse opslag van webserverlogs | [cloudshirt-efs.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-efs.yml) |
+| REQ-04 - RDS via IaC | [cloudshirt-rds.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-rds.yml) |
+| REQ-05 - Monitoringoplossing (ELK) via IaC | [cloudshirt-elk.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-elk.yml) |
+| REQ-06 - Logs zichtbaar in Elastic Stack via Filebeat (optioneel) | [cloudshirt-ec2.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) |
+| REQ-07 - Scriptmatige export ordertabel naar S3 | [export-orders.sh](Assignment%201%20-%20AWS%20Basics/export-orders.sh) |
+| REQ-08 - AWS serverless-applicatie | [cloudshirt-s3.yml](Assignment%201%20-%20AWS%20Basics/cloudshirt-s3.yml) |
 
 ### Assignment 2: Docker in the Cloud
 
