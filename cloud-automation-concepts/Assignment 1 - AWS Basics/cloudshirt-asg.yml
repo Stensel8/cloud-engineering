@@ -3,10 +3,13 @@ Description: CloudShirt .NET Auto Scaling Group for spike traffic (6-8 PM ET)
 Parameters:
   AccessKey:
     Type: String
+    NoEcho: true
   SecretKey:
     Type: String
+    NoEcho: true
   SessionToken:
     Type: String
+    NoEcho: true
   AccountId:
     Type: String
   InstanceType:
