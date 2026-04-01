@@ -16,8 +16,8 @@ Resources:
       TargetType: instance
       HealthCheckPath: /
       Targets:
-        - Id: !ImportValue ec2-stack:Instance1
-        - Id: !ImportValue ec2-stack:Instance2
+        - Id: !ImportValue cloudshirt-ec2:Instance1
+        - Id: !ImportValue cloudshirt-ec2:Instance2
 
   # Loadbalancer
   ApplicationLoadBalancer:
@@ -55,4 +55,4 @@ Outputs:
     Description: ARN of the Target Group for port 5098
     Value: !Ref WebTargetGroup
     Export:
-      Name: WebTargetGroup
+      Name: !Sub "${AWS::StackName}:WebTargetGroup"

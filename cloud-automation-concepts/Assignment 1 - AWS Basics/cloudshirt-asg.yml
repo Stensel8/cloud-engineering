@@ -238,7 +238,7 @@ Resources:
         - !ImportValue cloudshirt-network:CloudShirtFirstSubnet
         - !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       TargetGroupARNs:
-        - !ImportValue WebTargetGroup
+        - !ImportValue cloudshirt-lb:WebTargetGroup
       Tags:
         - Key: Name
           Value: CloudShirt-Web-ASG
