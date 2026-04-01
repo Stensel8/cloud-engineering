@@ -4,16 +4,6 @@ Description: >
   nginx reverse proxy, and CloudShirt web app configured to use the RDS database.
 
 Parameters:
-  DBUsername:
-    Type: String
-    Default: csadmin
-    NoEcho: true
-    Description: Master username for RDS
-  DBPassword:
-    Type: String
-    NoEcho: true
-    Description: Master password for RDS
-    Default: Welkom123!
   DBAllocatedStorage:
     Type: Number
     Default: 30
@@ -31,6 +21,16 @@ Resources:
         - Key: Name
           Value: CloudShirt-DBSubnetGroup
 
+  CloudShirtDBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Credentials for CloudShirt RDS master user
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"csadmin"}'
+        GenerateStringKey: password
+        PasswordLength: 20
+        ExcludeCharacters: '"@/\\'
+
   CloudShirtRDSInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -38,8 +38,8 @@ Resources:
       Engine: sqlserver-ex
       DBInstanceClass: db.t3.medium
       AllocatedStorage: !Ref DBAllocatedStorage
-      MasterUsername: !Ref DBUsername
-      MasterUserPassword: !Ref DBPassword
+      MasterUsername: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:password}}"
       LicenseModel: license-included
       MonitoringInterval: 0
       VPCSecurityGroups:
@@ -51,6 +51,7 @@ Resources:
       StorageType: gp2
       DeletionProtection: false
     DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
 
 Outputs:
   RDSEndpointAddress:
@@ -59,14 +60,8 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}:RDSEndpointAddress"
 
-  RDSUsername:
-    Description: The RDS master username
-    Value: !Ref DBUsername
+  RDSSecretArn:
+    Description: ARN for the generated RDS credentials secret
+    Value: !Ref CloudShirtDBSecret
     Export:
-      Name: !Sub "${AWS::StackName}:RDSUsername"
-
-  RDSPassword:
-    Description: The RDS master password
-    Value: !Ref DBPassword
-    Export:
-      Name: !Sub "${AWS::StackName}:RDSPassword"
+      Name: !Sub "${AWS::StackName}:RDSSecretArn"

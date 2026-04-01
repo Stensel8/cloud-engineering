@@ -32,9 +32,9 @@
 
 .NOTES
     Vereisten:
-    - AWS CLI v2 geïnstalleerd
+    - AWS CLI v2 geinstalleerd
     - aws.txt aanwezig in dezelfde map (zie README voor formaat)
-    - aws.txt staat in .gitignore — commit dit bestand NOOIT
+    - aws.txt staat in .gitignore - commit dit bestand NOOIT
 #>
 
 [CmdletBinding()]
@@ -51,8 +51,8 @@ $ErrorActionPreference = "Stop"
 # ---------------------------------------------------------------------------
 function Write-Section {
     param([string]$Title)
-    Write-Host ""
-    Write-Host "===== $Title =====" -ForegroundColor Magenta
+    Write-Output ""
+    Write-Output "===== $Title ====="
 }
 
 # ---------------------------------------------------------------------------
@@ -61,12 +61,12 @@ function Write-Section {
 Write-Section "Vooraf controleren"
 
 if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
-    Write-Host "FOUT: AWS CLI is niet geïnstalleerd." -ForegroundColor Red
-    Write-Host "Installeer AWS CLI v2 via: https://aws.amazon.com/cli/" -ForegroundColor Yellow
+    Write-Output "FOUT: AWS CLI is niet geinstalleerd."
+    Write-Output "Installeer AWS CLI v2 via: https://aws.amazon.com/cli/"
     exit 1
 }
 
-Write-Host "AWS CLI gevonden." -ForegroundColor Green
+Write-Output "AWS CLI gevonden."
 
 # ---------------------------------------------------------------------------
 # Stap 2: credentials inlezen uit aws.txt
@@ -81,14 +81,14 @@ Write-Section "Credentials inlezen"
 $AwsFile = Join-Path $PSScriptRoot "aws.txt"
 
 if (-not (Test-Path $AwsFile)) {
-    Write-Host "FOUT: aws.txt niet gevonden in: $PSScriptRoot" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Maak een bestand 'aws.txt' aan met de volgende inhoud:" -ForegroundColor Yellow
-    Write-Host "  aws_access_key_id=WAARDE"     -ForegroundColor Yellow
-    Write-Host "  aws_secret_access_key=WAARDE" -ForegroundColor Yellow
-    Write-Host "  aws_session_token=WAARDE"     -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "Je vindt deze waarden in AWS Academy onder 'Account Details'." -ForegroundColor Yellow
+    Write-Output "FOUT: aws.txt niet gevonden in: $PSScriptRoot"
+    Write-Output ""
+    Write-Output "Maak een bestand 'aws.txt' aan met de volgende inhoud:"
+    Write-Output "  aws_access_key_id=WAARDE"
+    Write-Output "  aws_secret_access_key=WAARDE"
+    Write-Output "  aws_session_token=WAARDE"
+    Write-Output ""
+    Write-Output "Je vindt deze waarden in AWS Academy onder 'Account Details'."
     exit 1
 }
 
@@ -103,12 +103,12 @@ Get-Content $AwsFile | ForEach-Object {
 # Controleer of alle vereiste sleutels aanwezig zijn
 foreach ($RequiredKey in @('aws_access_key_id', 'aws_secret_access_key', 'aws_session_token')) {
     if (-not $AwsData.ContainsKey($RequiredKey)) {
-        Write-Host "FOUT: sleutel '$RequiredKey' ontbreekt in aws.txt" -ForegroundColor Red
+        Write-Output "FOUT: sleutel '$RequiredKey' ontbreekt in aws.txt"
         exit 1
     }
 }
 
-Write-Host "Credentials geladen uit aws.txt." -ForegroundColor Green
+Write-Output "Credentials geladen uit aws.txt."
 
 # ---------------------------------------------------------------------------
 # Stap 3: omgevingsvariabelen instellen voor de AWS CLI
@@ -121,12 +121,12 @@ $env:AWS_DEFAULT_REGION    = $Region
 # Valideer credentials door de accountidentiteit op te halen
 $null = aws sts get-caller-identity 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "FOUT: AWS-credentials zijn ongeldig of verlopen." -ForegroundColor Red
-    Write-Host "Download nieuwe credentials via AWS Academy → Account Details." -ForegroundColor Yellow
+    Write-Output "FOUT: AWS-credentials zijn ongeldig of verlopen."
+    Write-Output "Download nieuwe credentials via AWS Academy -> Account Details."
     exit 1
 }
 
-Write-Host "Credentials zijn geldig." -ForegroundColor Green
+Write-Output "Credentials zijn geldig."
 
 # ---------------------------------------------------------------------------
 # Stap 4: benodigde invoerwaarden ophalen
@@ -138,22 +138,22 @@ $AccountId = aws sts get-caller-identity --query "Account" --output text 2>$null
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
     $AccountId = Read-Host "Voer je AWS Account ID in (bijv. 730335381450)"
     if ([string]::IsNullOrWhiteSpace($AccountId)) {
-        Write-Host "FOUT: geen Account ID opgegeven." -ForegroundColor Red
+        Write-Output "FOUT: geen Account ID opgegeven."
         exit 1
     }
 }
 
-Write-Host "Account ID: $AccountId" -ForegroundColor Green
+Write-Output "Account ID: $AccountId"
 
 # S3-bucketnaam opvragen als niet meegegeven als parameter
 if ([string]::IsNullOrWhiteSpace($BucketName)) {
     $BucketName = Read-Host "Geef een naam voor de S3-bucket (bijv. cloudshirt-exports-$AccountId)"
 }
 
-Write-Host "S3-bucketnaam: $BucketName" -ForegroundColor Green
+Write-Output "S3-bucketnaam: $BucketName"
 
 # ---------------------------------------------------------------------------
-# Hulpfunctie: deploy één CloudFormation-stack
+# Hulpfunctie: deploy een CloudFormation-stack
 #
 # Maakt de stack aan als hij nog niet bestaat; werkt hem bij als hij al bestaat.
 # Wacht tot de operatie voltooid is voordat de functie terugkeert.
@@ -174,8 +174,8 @@ function Invoke-StackDeployment {
         [switch]$IncludeBucket
     )
 
-    Write-Host ""
-    Write-Host "  → $StackName ($TemplateFile)" -ForegroundColor Cyan
+    Write-Output ""
+    Write-Output "  -> $StackName ($TemplateFile)"
 
     # Bouw de parameters-array op
     $Params = @()
@@ -206,12 +206,12 @@ function Invoke-StackDeployment {
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>$null
 
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "    Wachten op update..." -ForegroundColor DarkGray
+            Write-Output "    Wachten op update..."
             aws cloudformation wait stack-update-complete --stack-name $StackName
-            Write-Host "    Bijgewerkt." -ForegroundColor Green
+            Write-Output "    Bijgewerkt."
         } else {
             # Exit-code 255 = "No updates to be performed" (geen echte fout)
-            Write-Host "    Geen wijzigingen of al up-to-date." -ForegroundColor Yellow
+            Write-Output "    Geen wijzigingen of al up-to-date."
         }
     } else {
         # Stack bestaat niet: aanmaken
@@ -222,13 +222,13 @@ function Invoke-StackDeployment {
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
 
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "    FOUT: aanmaken van stack mislukt." -ForegroundColor Red
+            Write-Output "    FOUT: aanmaken van stack mislukt."
             exit 1
         }
 
-        Write-Host "    Wachten op aanmaken..." -ForegroundColor DarkGray
+        Write-Output "    Wachten op aanmaken..."
         aws cloudformation wait stack-create-complete --stack-name $StackName
-        Write-Host "    Aangemaakt." -ForegroundColor Green
+        Write-Output "    Aangemaakt."
     }
 }
 
@@ -236,37 +236,37 @@ function Invoke-StackDeployment {
 # Stap 5: deployment uitvoeren in de juiste volgorde
 #
 # De volgorde is belangrijk: latere stacks importeren outputs van eerdere stacks
-# via !ImportValue. Een stack die nog niet bestaat kan niet worden geïmporteerd.
+# via !ImportValue. Een stack die nog niet bestaat kan niet worden geimporteerd.
 # ---------------------------------------------------------------------------
 Write-Section "Deployment starten"
 
 # 1. Netwerk-basisinfrastructuur (VPC, subnetten, gateways, security groups)
 #    Alle andere stacks zijn hiervan afhankelijk.
-Write-Host "Stap 1/6 - Netwerk" -ForegroundColor White
+Write-Output "Stap 1/6 - Netwerk"
 Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
 
 # 2. Gedeelde services (afhankelijk van het netwerk)
-Write-Host "Stap 2/6 - Gedeelde services (EFS, ELK, RDS)" -ForegroundColor White
+Write-Output "Stap 2/6 - Gedeelde services (EFS, ELK, RDS)"
 Invoke-StackDeployment -StackName "cloudshirt-efs" -TemplateFile ".\cloudshirt-efs.yml"
 Invoke-StackDeployment -StackName "cloudshirt-elk" -TemplateFile ".\cloudshirt-elk.yml"
 Invoke-StackDeployment -StackName "cloudshirt-rds" -TemplateFile ".\cloudshirt-rds.yml"
 
 # 3. EC2-webservers (afhankelijk van EFS, ELK en RDS voor de installatie via UserData)
-Write-Host "Stap 3/6 - EC2-webservers" -ForegroundColor White
+Write-Output "Stap 3/6 - EC2-webservers"
 Invoke-StackDeployment -StackName "cloudshirt-ec2" -TemplateFile ".\cloudshirt-ec2.yml" `
     -IncludeCredentials -IncludeBucket
 
 # 4. Load Balancer (afhankelijk van de EC2-instances als target)
-Write-Host "Stap 4/6 - Load Balancer" -ForegroundColor White
+Write-Output "Stap 4/6 - Load Balancer"
 Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml"
 
 # 5. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
-Write-Host "Stap 5/6 - Auto Scaling Group" -ForegroundColor White
+Write-Output "Stap 5/6 - Auto Scaling Group"
 Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
     -IncludeCredentials -IncludeBucket
 
 # 6. S3-bucket voor RDS-exports
-Write-Host "Stap 6/6 - S3-bucket" -ForegroundColor White
+Write-Output "Stap 6/6 - S3-bucket"
 Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3.yml" `
     -IncludeBucket
 
@@ -274,10 +274,10 @@ Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3
 # Klaar
 # ---------------------------------------------------------------------------
 Write-Section "Deployment voltooid"
-Write-Host "Alle stacks zijn succesvol gedeployt." -ForegroundColor Green
-Write-Host ""
-Write-Host "Volgende stappen:" -ForegroundColor Yellow
-Write-Host "  1. Haal de ALB-URL op:" -ForegroundColor Yellow
-Write-Host "     aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'" -ForegroundColor Yellow
-Write-Host "  2. Open de URL in je browser om de CloudShirt-applicatie te testen." -ForegroundColor Yellow
-Write-Host "  3. Voer export-orders.sh uit op een EC2-instance om de orders te exporteren." -ForegroundColor Yellow
+Write-Output "Alle stacks zijn succesvol gedeployt."
+Write-Output ""
+Write-Output "Volgende stappen:"
+Write-Output "  1. Haal de ALB-URL op:"
+Write-Output "     aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
+Write-Output "  2. Open de URL in je browser om de CloudShirt-applicatie te testen."
+Write-Output "  3. Voer export-orders.sh uit op een EC2-instance om de orders te exporteren."

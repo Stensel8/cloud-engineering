@@ -5,25 +5,25 @@ param(
 
 # ===== Controleer of AWS CLI aanwezig is =====
 if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
-    Write-Host "AWS CLI is niet geïnstalleerd. Installeer eerst AWS CLI v2." -ForegroundColor Red
+    Write-Output "AWS CLI is niet geinstalleerd. Installeer eerst AWS CLI v2."
     exit 1
 }
 
-Write-Host "AWS CLI gevonden, verder met deployment" -ForegroundColor Green
+Write-Output "AWS CLI gevonden, verder met deployment"
 
 # ===== Vraag tijdelijke AWS credentials =====
 $awsFile = ".\aws.txt"
 
 # Als bestand er niet is, error
 if (-Not (Test-Path $awsFile)) {
-    Write-Host "Fout: aws.txt niet gevonden in de huidige map. Maak een bestand met deze inhoud:" -ForegroundColor Red
-    Write-Host "aws_access_key_id=WAARDE" -ForegroundColor Yellow
-    Write-Host "aws_secret_access_key=WAARDE" -ForegroundColor Yellow
-    Write-Host "aws_session_token=WAARDE" -ForegroundColor Yellow
+    Write-Output "Fout: aws.txt niet gevonden in de huidige map. Maak een bestand met deze inhoud:"
+    Write-Output "aws_access_key_id=WAARDE"
+    Write-Output "aws_secret_access_key=WAARDE"
+    Write-Output "aws_session_token=WAARDE"
     exit 1
 } 
 
-Write-Host "aws.txt gevonden credentials worden ingelezen" -ForegroundColor Green
+Write-Output "aws.txt gevonden credentials worden ingelezen"
 
 # Data inladen uit bestand
 $awsData = @{}
@@ -38,7 +38,7 @@ Get-Content $awsFile | ForEach-Object {
 # Data opzoeken
 foreach ($k in @('aws_access_key_id','aws_secret_access_key','aws_session_token')) {
     if (-not $awsData.ContainsKey($k)) {
-        Write-Host "Fout: sleutel '$k' ontbreekt in aws.txt" -ForegroundColor Red
+        Write-Output "Fout: sleutel '$k' ontbreekt in aws.txt"
         exit 1
     }
 }
@@ -56,9 +56,9 @@ $env:AWS_SESSION_TOKEN     = $SessionToken
 $env:AWS_DEFAULT_REGION    = $Region
 
 # Controleer of credentials geldig zijn
-$caller = aws sts get-caller-identity 2>$null
+$null = aws sts get-caller-identity 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "`nFout: de ingevoerde credentials zijn ongeldig of verlopen." -ForegroundColor Red
+    Write-Output "`nFout: de ingevoerde credentials zijn ongeldig of verlopen."
     exit 1
 }
 
@@ -66,14 +66,14 @@ if ($LASTEXITCODE -ne 0) {
 $AccountId = (aws sts get-caller-identity --query "Account" --output text 2>$null)
 
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId) -or $AccountId -eq "null") {
-  Write-Host "Kon AWS Account ID niet automatisch ophalen." -ForegroundColor Yellow
+    Write-Output "Kon AWS Account ID niet automatisch ophalen."
   $AccountId = Read-Host "Voer AWS Account ID handmatig in (bijv. 730335381450)"
   if ([string]::IsNullOrWhiteSpace($AccountId)) {
-    Write-Host "Geen Account ID opgegeven. Stop." -ForegroundColor Red
+        Write-Output "Geen Account ID opgegeven. Stop."
     exit 1
   }
 } else {
-  Write-Host "AWS Account ID automatisch gevonden: $AccountId" -ForegroundColor Green
+    Write-Output "AWS Account ID automatisch gevonden: $AccountId"
 }
 
 # ===== Functie om stack te deployen =====
@@ -84,10 +84,10 @@ function Deploy-Stack {
         [switch]$IncludeCredentials
     )
 
-    Write-Host ">>> Deploying stack: $StackName ($TemplateFile)" -ForegroundColor Cyan
+    Write-Output ">>> Deploying stack: $StackName ($TemplateFile)"
 
     # Controleer of stack al bestaat
-    $exists = aws cloudformation describe-stacks --region $Region --stack-name $StackName 2>$null
+    $null = aws cloudformation describe-stacks --region $Region --stack-name $StackName 2>$null
 
     # Parameters indien nodig
     if ($IncludeCredentials) {
@@ -102,7 +102,7 @@ function Deploy-Stack {
     }
 
     if ($LASTEXITCODE -eq 0) {
-        # Stack bestaat al → update
+        # Stack bestaat al  update
         aws cloudformation update-stack `
             --region $Region `
             --stack-name $StackName `
@@ -112,12 +112,12 @@ function Deploy-Stack {
 
         if ($LASTEXITCODE -eq 0) {
             aws cloudformation wait stack-update-complete --region $Region --stack-name $StackName
-            Write-Host "Stack $StackName updated." -ForegroundColor Green
+            Write-Output "Stack $StackName updated."
         } else {
-            Write-Host "Geen wijzigingen of fout bij update van $StackName." -ForegroundColor Yellow
+            Write-Output "Geen wijzigingen of fout bij update van $StackName."
         }
     } else {
-        # Stack bestaat nog niet → create
+        # Stack bestaat nog niet  create
         aws cloudformation create-stack `
             --region $Region `
             --stack-name $StackName `
@@ -127,9 +127,9 @@ function Deploy-Stack {
 
         if ($LASTEXITCODE -eq 0) {
             aws cloudformation wait stack-create-complete --region $Region --stack-name $StackName
-            Write-Host "Stack $StackName created." -ForegroundColor Green
+            Write-Output "Stack $StackName created."
         } else {
-            Write-Host "Fout bij aanmaken van $StackName." -ForegroundColor Red
+            Write-Output "Fout bij aanmaken van $StackName."
             exit 1
         }
     }

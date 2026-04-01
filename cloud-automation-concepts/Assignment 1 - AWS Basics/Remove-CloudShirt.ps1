@@ -53,8 +53,8 @@ $ErrorActionPreference = "Stop"
 # ---------------------------------------------------------------------------
 function Write-Section {
     param([string]$Title)
-    Write-Host ""
-    Write-Host "===== $Title =====" -ForegroundColor Magenta
+    Write-Output ""
+    Write-Output "===== $Title ====="
 }
 
 # ---------------------------------------------------------------------------
@@ -62,66 +62,68 @@ function Write-Section {
 # ---------------------------------------------------------------------------
 Write-Section "Vooraf controleren"
 
-$null = aws sts get-caller-identity 2>$null
+$null = aws sts get-caller-identity --region $Region 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "FOUT: geen geldige AWS-credentials gevonden." -ForegroundColor Red
-    Write-Host "Stel credentials in via omgevingsvariabelen of aws configure." -ForegroundColor Yellow
+    Write-Output "FOUT: geen geldige AWS-credentials gevonden."
+    Write-Output "Stel credentials in via omgevingsvariabelen of aws configure."
     exit 1
 }
 
-Write-Host "AWS-credentials gevonden." -ForegroundColor Green
+Write-Output "AWS-credentials gevonden."
 
 # ---------------------------------------------------------------------------
 # Stap 2: bevestiging vragen voordat er iets verwijderd wordt
 # ---------------------------------------------------------------------------
 Write-Section "Bevestiging vereist"
 
-Write-Host "De volgende stacks worden verwijderd:" -ForegroundColor Yellow
-$StacksToRemove | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
-Write-Host ""
-Write-Host "LET OP: S3-buckets met inhoud worden NIET automatisch verwijderd." -ForegroundColor Red
-Write-Host "        Leeg de bucket eerst met:" -ForegroundColor Red
-Write-Host "        aws s3 rm s3://<bucketnaam> --recursive" -ForegroundColor Red
-Write-Host ""
+Write-Output "De volgende stacks worden verwijderd:"
+$StacksToRemove | ForEach-Object { Write-Output "  - $_" }
+Write-Output ""
+Write-Output "LET OP: S3-buckets met inhoud worden NIET automatisch verwijderd."
+Write-Output "        Leeg de bucket eerst met:"
+Write-Output "        aws s3 rm s3://<bucketnaam> --recursive"
+Write-Output ""
 
 $Confirm = Read-Host "Weet je het zeker? Typ 'ja' om door te gaan"
 if ($Confirm -ne "ja") {
-    Write-Host "Afgebroken." -ForegroundColor Yellow
+    Write-Output "Afgebroken."
     exit 0
 }
 
 # ---------------------------------------------------------------------------
-# Hulpfunctie: verwijder één CloudFormation-stack
+# Hulpfunctie: verwijder een CloudFormation-stack
 #
 # Controleert eerst of de stack bestaat. Als dat niet zo is, wordt de stack
 # overgeslagen. Anders wordt de stack verwijderd en gewacht tot hij weg is.
 # ---------------------------------------------------------------------------
 function Remove-Stack {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param (
         [Parameter(Mandatory)][string]$StackName
     )
 
-    Write-Host ""
-    Write-Host "  → $StackName" -ForegroundColor Cyan
+    Write-Output ""
+    Write-Output "  -> $StackName"
 
     # Controleer of de stack bestaat voordat we proberen te verwijderen
-    $null = aws cloudformation describe-stacks --stack-name $StackName 2>$null
+    $null = aws cloudformation describe-stacks --region $Region --stack-name $StackName 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "    Bestaat niet, overgeslagen." -ForegroundColor DarkGray
+        Write-Output "    Bestaat niet, overgeslagen."
         return
     }
 
     # Verwijder de stack
-    aws cloudformation delete-stack --stack-name $StackName
+    if ($PSCmdlet.ShouldProcess($StackName, "Delete CloudFormation stack")) {
+        aws cloudformation delete-stack --region $Region --stack-name $StackName
+    }
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "    FOUT: verwijderen mislukt." -ForegroundColor Red
+        Write-Output "    FOUT: verwijderen mislukt."
         return
     }
 
-    Write-Host "    Wachten op verwijdering..." -ForegroundColor DarkGray
-    aws cloudformation wait stack-delete-complete --stack-name $StackName
-    Write-Host "    Verwijderd." -ForegroundColor Green
+    Write-Output "    Wachten op verwijdering..."
+    aws cloudformation wait stack-delete-complete --region $Region --stack-name $StackName
+    Write-Output "    Verwijderd."
 }
 
 # ---------------------------------------------------------------------------
@@ -137,4 +139,4 @@ foreach ($StackName in $StacksToRemove) {
 # Klaar
 # ---------------------------------------------------------------------------
 Write-Section "Verwijdering voltooid"
-Write-Host "Alle opgegeven stacks zijn verwijderd (indien aanwezig)." -ForegroundColor Green
+Write-Output "Alle opgegeven stacks zijn verwijderd (indien aanwezig)."

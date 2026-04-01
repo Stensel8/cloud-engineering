@@ -28,10 +28,6 @@ Parameters:
     Type: String
     Default: main
     Description: Branch to checkout
-  SSHCidr:
-    Type: String
-    Default: 0.0.0.0/0
-    Description: CIDR range allowed to SSH into the instances
 
 Resources:
   ## =========================
