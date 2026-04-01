@@ -15,8 +15,8 @@ Resources:
     Properties:
       DBSubnetGroupDescription: CloudShirt RDS subnet group
       SubnetIds:
-        - !ImportValue base-stack:CloudShirtFirstPrivateSubnet
-        - !ImportValue base-stack:CloudShirtSecondPrivateSubnet
+        - !ImportValue cloudshirt-network:CloudShirtFirstPrivateSubnet
+        - !ImportValue cloudshirt-network:CloudShirtSecondPrivateSubnet
       Tags:
         - Key: Name
           Value: CloudShirt-DBSubnetGroup
@@ -43,7 +43,7 @@ Resources:
       LicenseModel: license-included
       MonitoringInterval: 0
       VPCSecurityGroups:
-        - !ImportValue base-stack:rdsSG
+        - !ImportValue cloudshirt-network:rdsSG
       DBSubnetGroupName: !Ref CloudShirtDBSubnetGroup
       PubliclyAccessible: false
       BackupRetentionPeriod: 1
