@@ -26,29 +26,16 @@ Bouw een AWS CloudFormation-oplossing die alle negen leerdoelen dekt en voldoet 
 
 **Deliverables:** CloudFormation-templates en scripts, plus een rapport (~5 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
-- [ ] **REQ-01** — Applicatie is highly available over meerdere AZ's via één URL
-  → [`cloudshirt-ec2.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) (WebInstance1 + WebInstance2 in us-east-1a/b) · [`cloudshirt-loadbalancer.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-loadbalancer.yml) (ALB)
-
-- [ ] **REQ-02** — Automatisch schalen tijdens piekuren (18:00–20:00 Eastern)
-  → [`cloudshirt-asg.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-asg.yml) (Scheduled Actions: scale-out 23:00 UTC / scale-in 01:00 UTC)
-
-- [ ] **REQ-03** — EFS voor dagelijkse opslag van applicatie-/webserverlogbestanden
-  → [`cloudshirt-efs.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-efs.yml) (EFS filesystem) · [`cloudshirt-ec2.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) (nginx logs → `/mnt/efs/nginx/`)
-
-- [ ] **REQ-04** — RDS-database ingericht via IaC
-  → [`cloudshirt-rds.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-rds.yml) (SQL Server Express, private subnetten)
-
-- [ ] **REQ-05** — Monitoringoplossing (ELK Stack v8.x) ingericht via IaC
-  → [`cloudshirt-elk.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-elk.yml) (Elasticsearch + Logstash + Kibana)
-
-- [ ] **REQ-06** — *(Optioneel, meer punten)* Logs zichtbaar in Elastic Stack via Filebeat
-  → [`cloudshirt-ec2.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) (Filebeat-installatie in UserData, stuurt naar Logstash:5044)
-
-- [ ] **REQ-07** — Scriptmatige export van de ordertabel naar S3
-  → [`export-orders.sh`](Assignment%201%20-%20AWS%20Basics/export-orders.sh) (bcp → CSV → S3, dagelijkse cron om 02:00)
-
-- [ ] **REQ-08** — AWS serverless-applicatie aangemaakt
-  → *(nog te implementeren)*
+| Requirement | Bewijs |
+|---|---|
+| REQ-01 - High availability over meerdere AZ's via een URL | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-loadbalancer.yml) |
+| REQ-02 - Autoscaling tijdens piekuren (18:00-20:00 Eastern) | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-asg.yml) |
+| REQ-03 - EFS voor dagelijkse opslag van webserverlogs | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-efs.yml) |
+| REQ-04 - RDS via IaC | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-rds.yml) |
+| REQ-05 - Monitoringoplossing (ELK) via IaC | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-elk.yml) |
+| REQ-06 - Logs zichtbaar in Elastic Stack via Filebeat (optioneel) | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) |
+| REQ-07 - Scriptmatige export ordertabel naar S3 | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/export-orders.sh) |
+| REQ-08 - AWS serverless-applicatie | [Klik hier voor bewijs](Assignment%201%20-%20AWS%20Basics/cloudshirt-s3.yml) |
 
 ### Assignment 2: Docker in the Cloud
 
