@@ -110,12 +110,16 @@ Resources:
               chown ec2-user:ec2-user "$APPROOT"
 
               # CloudShirt en DB opzetten
+              sudo -u ec2-user git clone --branch ${RepoBranch} ${RepoUrl} $APPROOT/src
+
+              # Verbindingsstrings aanpassen naar de RDS-instantie (REQ-04)
+              # Buiten bash -lc zodat $DBUsername/$DBPassword correct expanderen
+              sed -i "s|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|" $APPROOT/src/src/Web/appsettings.json
+              sed -i "s|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.Identity;|" $APPROOT/src/src/Web/appsettings.json
+
               sudo -u ec2-user bash -lc "
                 set -e
-                git clone --branch ${RepoBranch} ${RepoUrl} $APPROOT/src
                 cd $APPROOT/src/src/Web
-                sed -i "s|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|" appsettings.json
-                sed -i "s|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.Identity;|" appsettings.json
                 dotnet restore
                 dotnet publish -c Release -o $PUBLISH
               "
