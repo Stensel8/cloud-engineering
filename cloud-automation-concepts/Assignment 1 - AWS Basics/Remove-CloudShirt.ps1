@@ -34,6 +34,7 @@ param (
     # Omgekeerde volgorde ten opzichte van deployment:
     # stacks met afhankelijkheden worden als eerste verwijderd
     [string[]]$StacksToRemove = @(
+        "cloudshirt-serverless",   # Lambda, EventBridge, SNS (geen afhankelijkheden)
         "cloudshirt-s3",
         "cloudshirt-asg",
         "cloudshirt-lb",

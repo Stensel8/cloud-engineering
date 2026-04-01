@@ -3,7 +3,7 @@ Description: >
   CloudShirt EC2-webservers — twee instances verdeeld over twee AZ's (REQ-01).
   Beide instances starten vanuit dezelfde LaunchTemplate, zodat de configuratie
   maar één keer gedefinieerd hoeft te worden.
-  Installeert: .NET 6, nginx, CloudShirt-applicatie, Filebeat en mssql-tools.
+  Installeert: .NET 10, nginx, CloudShirt-applicatie, Filebeat en mssql-tools.
 
 # ---------------------------------------------------------------------------
 # Parameters
@@ -27,7 +27,7 @@ Parameters:
   InstanceType:
     Type: String
     Default: t3.small
-    Description: EC2 instance type (t3.small aanbevolen voor .NET 6)
+    Description: EC2 instance type (t3.small aanbevolen voor .NET 10)
 
   BucketName:
     Type: String
@@ -66,7 +66,7 @@ Resources:
     Properties:
       LaunchTemplateName: CloudShirt-WebServer
       LaunchTemplateData:
-        ImageId: ami-0254b2d5c4c472488   # Amazon Linux 2 (us-east-1)
+        ImageId: ami-0cb5cf49019e79c51   # Amazon Linux 2023 (us-east-1, x86_64)
         InstanceType: !Ref InstanceType
         KeyName: !Ref KeyName
         SecurityGroupIds:
@@ -94,15 +94,20 @@ Resources:
               DBPassword=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['password'])")
 
               # ── Systeem bijwerken en basispakketten installeren ───────────
-              yum update -y
-              yum install -y gcc git unzip curl amazon-linux-extras amazon-efs-utils unixODBC unixODBC-devel
+              dnf update -y
+              dnf install -y gcc git unzip curl amazon-efs-utils unixODBC unixODBC-devel
 
-              # ── .NET 6 installeren ────────────────────────────────────────
-              rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-              yum install -y aspnetcore-runtime-6.0 dotnet-sdk-6.0
+              # ── .NET 10 installeren via het officiële installatiescript ───
+              # packages.microsoft.com heeft nog geen AL2023-repo voor .NET 10,
+              # daarom gebruiken we het universele dotnet-install.sh script.
+              curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+              chmod +x /tmp/dotnet-install.sh
+              /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/share/dotnet
+              ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet
+              export DOTNET_ROOT=/usr/share/dotnet
 
               # ── Nginx installeren en inschakelen ──────────────────────────
-              amazon-linux-extras install nginx1 -y
+              dnf install -y nginx
               systemctl enable nginx
 
               # ── EFS mounten (gedeeld bestandssysteem voor logs) ──────────
@@ -242,14 +247,12 @@ Resources:
 
               # ── mssql-tools installeren (bcp + sqlcmd voor REQ-07) ────────
               # bcp wordt gebruikt door export-orders.sh om de ordertabel
-              # naar S3 te exporteren.
-              curl -O https://packages.microsoft.com/rhel/8/prod/msodbcsql17-17.10.6.1-1.x86_64.rpm
-              ACCEPT_EULA=Y yum localinstall -y msodbcsql17-17.10.6.1-1.x86_64.rpm
+              # naar S3 te exporteren. AL2023 is RHEL 9-compatibel.
+              curl -sSL https://packages.microsoft.com/config/rhel/9/prod.repo \
+                -o /etc/yum.repos.d/mssql-release.repo
+              ACCEPT_EULA=Y dnf install -y msodbcsql18 mssql-tools18
 
-              curl -O https://packages.microsoft.com/rhel/8/prod/mssql-tools-17.10.1.1-1.x86_64.rpm
-              ACCEPT_EULA=Y yum localinstall -y mssql-tools-17.10.1.1-1.x86_64.rpm
-
-              echo 'export PATH="$PATH:/opt/mssql-tools/bin"' > /etc/profile.d/mssql-tools.sh
+              echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' > /etc/profile.d/mssql-tools.sh
               chmod +x /etc/profile.d/mssql-tools.sh
 
               # ── Export-script downloaden van onze eigen repo ──────────────

@@ -40,7 +40,7 @@ Resources:
       LaunchTemplateData:
         InstanceType: !Ref InstanceType
         KeyName: !Ref KeyName
-        ImageId: ami-0254b2d5c4c472488
+        ImageId: ami-0cb5cf49019e79c51   # Amazon Linux 2023 (us-east-1, x86_64)
         SecurityGroupIds:
           - !ImportValue cloudshirt-network:InstanceSG
         MetadataOptions:
@@ -63,13 +63,17 @@ Resources:
               DBUsername=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['username'])")
               DBPassword=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['password'])")
 
-              yum update -y
-              yum install -y gcc git unzip curl amazon-linux-extras amazon-efs-utils unixODBC unixODBC-devel
+              dnf update -y
+              dnf install -y gcc git unzip curl amazon-efs-utils unixODBC unixODBC-devel
 
-              rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-              yum install -y aspnetcore-runtime-6.0 dotnet-sdk-6.0
+              # .NET 10 via officieel installatiescript (AL2023, x86_64)
+              curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+              chmod +x /tmp/dotnet-install.sh
+              /tmp/dotnet-install.sh --channel 10.0 --install-dir /usr/share/dotnet
+              ln -sf /usr/share/dotnet/dotnet /usr/bin/dotnet
+              export DOTNET_ROOT=/usr/share/dotnet
 
-              amazon-linux-extras install nginx1 -y
+              dnf install -y nginx
               systemctl enable nginx
 
               # EFS Mount
@@ -198,19 +202,13 @@ Resources:
               systemctl enable filebeat
               systemctl restart filebeat
 
-              # SQLCMD en BCP
-              curl -O https://packages.microsoft.com/rhel/8/prod/msodbcsql17-17.10.6.1-1.x86_64.rpm
-              ACCEPT_EULA=Y yum localinstall -y msodbcsql17-17.10.6.1-1.x86_64.rpm
-              
-              curl -O https://packages.microsoft.com/rhel/8/prod/mssql-tools-17.10.1.1-1.x86_64.rpm
-              ACCEPT_EULA=Y yum localinstall -y mssql-tools-17.10.1.1-1.x86_64.rpm
+              # SQLCMD en BCP (AL2023 = RHEL 9-compatibel)
+              curl -sSL https://packages.microsoft.com/config/rhel/9/prod.repo \
+                -o /etc/yum.repos.d/mssql-release.repo
+              ACCEPT_EULA=Y dnf install -y msodbcsql18 mssql-tools18
 
-              echo 'export PATH="$PATH:/opt/mssql-tools/bin"' >> /etc/profile.d/mssql-tools.sh
+              echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' > /etc/profile.d/mssql-tools.sh
               chmod +x /etc/profile.d/mssql-tools.sh
-              source /etc/profile.d/mssql-tools.sh
-
-              bcp -v
-              sqlcmd -? 
 
               cd "/home/ec2-user"
               echo "Current directory: $(pwd)"

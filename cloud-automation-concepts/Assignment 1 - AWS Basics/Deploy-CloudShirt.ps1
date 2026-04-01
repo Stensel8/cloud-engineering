@@ -11,14 +11,15 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. base-stack           -- VPC, subnetten, gateways
-      2. cloudshirt-efs      -- Elastic File System
-         cloudshirt-elk      -- ELK monitoring stack
-         cloudshirt-rds      -- RDS SQL Server database
-      3. cloudshirt-ec2      -- EC2-webservers
-      4. cloudshirt-lb       -- Application Load Balancer
-      5. cloudshirt-asg      -- Auto Scaling Group
-      6. cloudshirt-s3       -- S3-bucket voor exports
+      1. base-stack              -- VPC, subnetten, gateways
+      2. cloudshirt-efs         -- Elastic File System
+         cloudshirt-elk         -- ELK monitoring stack
+         cloudshirt-rds         -- RDS SQL Server database
+      3. cloudshirt-ec2         -- EC2-webservers
+      4. cloudshirt-lb          -- Application Load Balancer
+      5. cloudshirt-asg         -- Auto Scaling Group
+      6. cloudshirt-s3          -- S3-bucket voor exports
+      7. cloudshirt-serverless  -- Lambda export-monitor (REQ-08)
 
 .PARAMETER Region
     AWS-regio. Standaard: us-east-1 (vereist door AWS Academy).
@@ -270,8 +271,14 @@ Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-a
     -IncludeCredentials -IncludeBucket
 
 # 6. S3-bucket voor RDS-exports
-Write-Output "Stap 6/6 - S3-bucket"
+Write-Output "Stap 6/7 - S3-bucket"
 Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3.yml" `
+    -IncludeBucket
+
+# 7. Serverless Lambda export-monitor (REQ-08)
+#    Afhankelijk van cloudshirt-s3 (bucket moet bestaan vóór de Lambda wordt aangemaakt)
+Write-Output "Stap 7/7 - Serverless export-monitor (REQ-08)"
+Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
     -IncludeBucket
 
 # ---------------------------------------------------------------------------
@@ -280,8 +287,19 @@ Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3
 Write-Section "Deployment voltooid"
 Write-Output "Alle stacks zijn succesvol gedeployt."
 Write-Output ""
+Write-Output "Vereisten afgevinkt:"
+Write-Output "  REQ-01  HA over meerdere AZ's met ALB"
+Write-Output "  REQ-02  Auto Scaling spike-traffic (6-8 PM ET)"
+Write-Output "  REQ-03  EFS voor gedeelde logbestanden"
+Write-Output "  REQ-04  RDS SQL Server via CloudFormation (IaC)"
+Write-Output "  REQ-05  ELK Stack v8.x monitoring"
+Write-Output "  REQ-06  Filebeat -> Logstash (optioneel, aanwezig)"
+Write-Output "  REQ-07  Dagelijkse order-export naar S3 (bcp cron)"
+Write-Output "  REQ-08  Serverless Lambda export-monitor via EventBridge"
+Write-Output ""
 Write-Output "Volgende stappen:"
 Write-Output "  1. Haal de ALB-URL op:"
 Write-Output "     aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
 Write-Output "  2. Open de URL in je browser om de CloudShirt-applicatie te testen."
-Write-Output "  3. Voer export-orders.sh uit op een EC2-instance om de orders te exporteren."
+Write-Output "  3. Controleer Kibana (poort 5601 op de ELK-server) voor logs."
+Write-Output "  4. Controleer CloudWatch Logs voor de Lambda export-monitor resultaten."
