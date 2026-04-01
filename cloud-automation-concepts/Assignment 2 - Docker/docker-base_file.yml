@@ -238,41 +238,51 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref SSHCidr
+          Description: Allow SSH access
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+          Description: Allow HTTP traffic
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS traffic
         - IpProtocol: tcp
           FromPort: 2377
           ToPort: 2377
           CidrIp: 0.0.0.0/0
+          Description: Allow Docker Swarm management
         - IpProtocol: udp
           FromPort: 4789
           ToPort: 4789
           CidrIp: 0.0.0.0/0
+          Description: Allow Docker Swarm overlay network
         - IpProtocol: tcp
           FromPort: 7946
           ToPort: 7946
           CidrIp: 0.0.0.0/0
+          Description: Allow Docker Swarm node communication TCP
         - IpProtocol: tcp
           FromPort: 5098
           ToPort: 5098
           CidrIp: 0.0.0.0/0
+          Description: Allow CloudShirt PublicApi
         - IpProtocol: tcp
           FromPort: 5106
           ToPort: 5106
           CidrIp: 0.0.0.0/0
+          Description: Allow CloudShirt WebMVC
         - IpProtocol: udp
           FromPort: 7946
           ToPort: 7946
           CidrIp: 0.0.0.0/0
+          Description: Allow Docker Swarm node communication UDP
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
       Tags:
         - Key: Name
           Value: CloudShirt-EC2-SG
@@ -291,6 +301,7 @@ Resources:
           FromPort: 1433
           ToPort: 1433
           CidrIp: 10.0.0.0/16
+          Description: Allow SQL Server from VPC
       Tags:
         - Key: Name
           Value: CloudShirt-RDS-SG

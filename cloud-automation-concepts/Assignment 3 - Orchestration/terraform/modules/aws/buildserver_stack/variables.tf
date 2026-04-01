@@ -18,3 +18,9 @@ variable "gcp_service_account_json" {
   type        = string
   default     = ""
 }
+
+variable "sns_arn" {
+  description = "SNS topic ARN for CloudFormation stack event notifications"
+  type        = string
+  default     = ""
+}

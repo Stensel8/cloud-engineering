@@ -33,22 +33,26 @@ module "loadbalancer" {
 ######################################
 
 module "base" {
-  source = "./modules/aws/base_stack"
+  source       = "./modules/aws/base_stack"
+  sns_arn      = var.cfn_notification_sns_arn
 }
 
 module "rds" {
   source      = "./modules/aws/rds-stack"
   db_password = var.db_password
+  sns_arn     = var.cfn_notification_sns_arn
   depends_on  = [module.base]
 }
 
 module "efs" {
   source     = "./modules/aws/efs_stack"
+  sns_arn    = var.cfn_notification_sns_arn
   depends_on = [module.base]
 }
 
 module "elk" {
   source     = "./modules/aws/elk_stack"
+  sns_arn    = var.cfn_notification_sns_arn
   depends_on = [module.base]
 }
 
@@ -58,5 +62,6 @@ module "buildserver" {
   gcp_region               = var.gcp_region
   gcp_repo_name            = var.gcp_repo_name
   gcp_service_account_json = var.gcp_service_account_json
-  depends_on               = [module.efs, module.rds, module.elk] # <-- wacht tot infra klaar is
+  sns_arn                  = var.cfn_notification_sns_arn
+  depends_on               = [module.efs, module.rds, module.elk]
 }

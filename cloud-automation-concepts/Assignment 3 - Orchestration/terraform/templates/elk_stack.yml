@@ -22,26 +22,32 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0         # tijdelijk voor testen
+          CidrIp: 0.0.0.0/0
+          Description: Allow SSH access
         - IpProtocol: tcp
           FromPort: 9200
           ToPort: 9200
           CidrIp: 0.0.0.0/0
+          Description: Allow Elasticsearch HTTP API
         - IpProtocol: tcp
           FromPort: 9300
           ToPort: 9300
           CidrIp: 0.0.0.0/0
+          Description: Allow Elasticsearch transport
         - IpProtocol: tcp
           FromPort: 5044
           ToPort: 5044
           CidrIp: 0.0.0.0/0
+          Description: Allow Logstash Beats input
         - IpProtocol: tcp
           FromPort: 5601
           ToPort: 5601
           CidrIp: 0.0.0.0/0
+          Description: Allow Kibana web interface
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
       Tags:
         - Key: Name
           Value: CloudShirt-ELK-SG

@@ -1,6 +1,7 @@
 resource "aws_cloudformation_stack" "buildserver" {
-  name          = "buildserver-stack"
-  template_body = file("${path.root}/templates/buildserver.yml")
+  name              = "buildserver-stack"
+  template_body     = file("${path.root}/templates/buildserver.yml")
+  notification_arns = var.sns_arn != "" ? [var.sns_arn] : []
 
   parameters = {
     GCPProjectID          = var.project_id

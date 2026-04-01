@@ -1,3 +1,9 @@
+variable "cfn_notification_sns_arn" {
+  description = "SNS topic ARN for CloudFormation stack event notifications"
+  type        = string
+  default     = ""
+}
+
 variable "db_password" {
   description = "Password for RDS database"
   type        = string

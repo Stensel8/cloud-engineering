@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: S3 bucket voor RDS data
+Description: S3 bucket voor RDS data met access logging
 
 Parameters:
   BucketName:
@@ -8,6 +8,18 @@ Parameters:
     Default: rds-export-bucket-cloudshirt-luca
 
 Resources:
+  RDSExportBucketLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${BucketName}-logs"
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
   RDSExportBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -19,6 +31,9 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LoggingConfiguration:
+        DestinationBucketName: !Ref RDSExportBucketLogs
+        LogFilePrefix: access-logs/
 
 Outputs:
   BucketName:

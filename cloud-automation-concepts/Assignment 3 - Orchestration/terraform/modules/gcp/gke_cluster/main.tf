@@ -11,14 +11,61 @@ resource "google_container_cluster" "primary" {
 
   deletion_protection = false
 
+  release_channel {
+    channel = "REGULAR"
+  }
+
+  private_cluster_config {
+    enable_private_nodes    = true
+    enable_private_endpoint = false
+    master_ipv4_cidr_block  = "172.16.0.0/28"
+  }
+
+  master_authorized_networks_config {
+    cidr_blocks {
+      cidr_block   = "0.0.0.0/0"
+      display_name = "all"
+    }
+  }
+
+  network_policy {
+    enabled  = true
+    provider = "CALICO"
+  }
+
+  addons_config {
+    network_policy_config {
+      disabled = false
+    }
+  }
+
+  binary_authorization {
+    evaluation_mode = "PROJECT_SINGLETON_POLICY_ENFORCE"
+  }
+
+  workload_identity_config {
+    workload_pool = "${data.google_client_config.current.project}.svc.id.goog"
+  }
+
+  resource_labels = {
+    project     = "cloudshirt"
+    environment = "prod"
+  }
 }
+
+data "google_client_config" "current" {}
 
 resource "google_container_node_pool" "primary_nodes" {
   name       = "primary-node-pool"
   location   = "europe-west4"
   cluster    = google_container_cluster.primary.name
 
-  node_count = 2  # GKE autoscales later if needed
+  node_count = 2
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
 
   node_config {
     machine_type = "e2-medium"
@@ -26,6 +73,15 @@ resource "google_container_node_pool" "primary_nodes" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
+
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
+
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
   }
 }
 

@@ -238,17 +238,21 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref SSHCidr
+          Description: Allow SSH access
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+          Description: Allow HTTP traffic
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS traffic
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
       Tags:
         - Key: Name
           Value: CloudShirt-EC2-SG
@@ -267,6 +271,7 @@ Resources:
           FromPort: 1433
           ToPort: 1433
           CidrIp: 10.0.0.0/16
+          Description: Allow SQL Server from VPC
       Tags:
         - Key: Name
           Value: CloudShirt-RDS-SG

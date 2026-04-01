@@ -43,6 +43,9 @@ Resources:
         ImageId: ami-0254b2d5c4c472488
         SecurityGroupIds:
           - !ImportValue cloudshirt-network:InstanceSG
+        MetadataOptions:
+          HttpTokens: required
+          HttpEndpoint: enabled
         UserData:
           Fn::Base64: !Sub
             - |

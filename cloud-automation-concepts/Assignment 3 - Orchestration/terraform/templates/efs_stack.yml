@@ -11,6 +11,7 @@ Resources:
           FromPort: 2049
           ToPort: 2049
           CidrIp: 10.0.0.0/16
+          Description: Allow NFS from VPC CIDR
       Tags:
         - Key: Name
           Value: CloudShirtEFS-SG
