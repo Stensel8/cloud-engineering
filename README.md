@@ -1,4 +1,14 @@
+Nederlands
+
 [![PR Checks](https://github.com/Stensel8/cloud-engineering/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/pr-checks.yml)
+[![CloudFormation Lint](https://github.com/Stensel8/cloud-engineering/actions/workflows/cfn-lint.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/cfn-lint.yml)
+[![IaC Security Scan](https://github.com/Stensel8/cloud-engineering/actions/workflows/iac-security.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/iac-security.yml)
+[![PowerShell Lint](https://github.com/Stensel8/cloud-engineering/actions/workflows/ps-lint.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/ps-lint.yml)
+[![ShellCheck](https://github.com/Stensel8/cloud-engineering/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/shellcheck.yml)
+[![Ansible Lint](https://github.com/Stensel8/cloud-engineering/actions/workflows/ansible-lint.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/ansible-lint.yml)
+[![Actionlint](https://github.com/Stensel8/cloud-engineering/actions/workflows/actionlint.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/actionlint.yml)
+[![Terraform Quality](https://github.com/Stensel8/cloud-engineering/actions/workflows/terraform-quality.yml/badge.svg)](https://github.com/Stensel8/cloud-engineering/actions/workflows/terraform-quality.yml)
+
 
 > [!NOTE]
 > Deze repository wordt primair in het **Nederlands** bijgehouden.

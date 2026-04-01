@@ -1,0 +1,44 @@
+# Terraform Quality - Formatteert en valideert Terraform configuratie.
+name: Terraform Quality
+
+on:
+  push:
+    paths:
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/terraform/**/*.tf"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/terraform/**/*.tfvars"
+  pull_request:
+    paths:
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/terraform/**/*.tf"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/terraform/**/*.tfvars"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Terraform fmt + validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: cloud-automation-concepts/Assignment 3 - Orchestration/terraform
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init (zonder backend)
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate

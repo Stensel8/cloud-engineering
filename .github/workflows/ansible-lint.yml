@@ -1,0 +1,49 @@
+# Ansible Lint - Controleert playbooks en rollen op Ansible best practices.
+name: Ansible Lint
+
+on:
+  push:
+    paths:
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/**/*.yml"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/**/*.yaml"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/**/*.ini"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/ansible.cfg"
+  pull_request:
+    paths:
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/**/*.yml"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/**/*.yaml"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/**/*.ini"
+      - "cloud-automation-concepts/Assignment 3 - Orchestration/ansible/ansible.cfg"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ansible-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Ansible lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: cloud-automation-concepts/Assignment 3 - Orchestration/ansible
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Install ansible-lint
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core ansible-lint
+
+      - name: Lint Ansible code
+        run: ansible-lint -p .
