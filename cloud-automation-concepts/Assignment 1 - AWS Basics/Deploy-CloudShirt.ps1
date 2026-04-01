@@ -151,6 +151,11 @@ if ([string]::IsNullOrWhiteSpace($BucketName)) {
     $BucketName = Read-Host "Geef een naam voor de S3-bucket (bijv. cloudshirt-exports-$AccountId)"
 }
 
+if ([string]::IsNullOrWhiteSpace($BucketName)) {
+    Write-Output "FOUT: S3-bucketnaam is verplicht."
+    exit 1
+}
+
 Write-Output "S3-bucketnaam: $BucketName"
 
 # ---------------------------------------------------------------------------
@@ -178,6 +183,18 @@ function Invoke-StackDeployment {
     Write-Output ""
     Write-Output "  -> $StackName ($TemplateFile)"
 
+    # Los templatepad op relatief aan de scriptlocatie, niet aan de huidige shellmap
+    $ResolvedTemplateFile = if ([System.IO.Path]::IsPathRooted($TemplateFile)) {
+        $TemplateFile
+    } else {
+        Join-Path $PSScriptRoot $TemplateFile
+    }
+
+    if (-not (Test-Path $ResolvedTemplateFile)) {
+        Write-Output "    FOUT: templatebestand niet gevonden: $ResolvedTemplateFile"
+        exit 1
+    }
+
     # Bouw de parameters-array op
     $Params = @()
 
@@ -192,33 +209,57 @@ function Invoke-StackDeployment {
 
     if ($IncludeBucket) {
         $Params += "ParameterKey=BucketName,ParameterValue=$BucketName"
+        $Params += "ParameterKey=LogBucketName,ParameterValue=$BucketName"
     }
 
-    # Bepaal of de stack al bestaat
-    $null = aws cloudformation describe-stacks --stack-name $StackName 2>$null
+    # Bepaal of de stack al bestaat en in welke status hij staat
+    $StackStatus = aws cloudformation describe-stacks --stack-name $StackName --query "Stacks[0].StackStatus" --output text 2>$null
     $StackExists = ($LASTEXITCODE -eq 0)
+
+    if ($StackExists -and $StackStatus -eq "ROLLBACK_COMPLETE") {
+        Write-Output "    Stack staat in ROLLBACK_COMPLETE; verwijderen en opnieuw aanmaken..."
+
+        aws cloudformation delete-stack --stack-name $StackName
+        if ($LASTEXITCODE -ne 0) {
+            Write-Output "    FOUT: verwijderen van rollback-stack '$StackName' mislukt."
+            exit 1
+        }
+
+        aws cloudformation wait stack-delete-complete --stack-name $StackName
+        if ($LASTEXITCODE -ne 0) {
+            Write-Output "    FOUT: wachten op verwijderen van '$StackName' mislukt."
+            exit 1
+        }
+
+        $StackExists = $false
+    }
 
     if ($StackExists) {
         # Stack bestaat: bijwerken
-        aws cloudformation update-stack `
+        $UpdateOutput = aws cloudformation update-stack `
             --stack-name $StackName `
-            --template-body "file://$TemplateFile" `
+            --template-body "file://$ResolvedTemplateFile" `
             --parameters $Params `
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>$null
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
 
         if ($LASTEXITCODE -eq 0) {
             Write-Output "    Wachten op update..."
             aws cloudformation wait stack-update-complete --stack-name $StackName
             Write-Output "    Bijgewerkt."
         } else {
-            # Exit-code 255 = "No updates to be performed" (geen echte fout)
-            Write-Output "    Geen wijzigingen of al up-to-date."
+            if ($UpdateOutput -match "No updates are to be performed") {
+                Write-Output "    Geen wijzigingen of al up-to-date."
+            } else {
+                Write-Output "    FOUT: update van stack '$StackName' mislukt."
+                Write-Output "    AWS melding: $UpdateOutput"
+                exit 1
+            }
         }
     } else {
         # Stack bestaat niet: aanmaken
         aws cloudformation create-stack `
             --stack-name $StackName `
-            --template-body "file://$TemplateFile" `
+            --template-body "file://$ResolvedTemplateFile" `
             --parameters $Params `
             --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
 
@@ -247,33 +288,34 @@ Write-Section "Deployment starten"
 
 # 1. Netwerk-basisinfrastructuur (VPC, subnetten, gateways, security groups)
 #    Alle andere stacks zijn hiervan afhankelijk.
-Write-Output "Stap 1/6 - Netwerk"
+Write-Output "Stap 1/7 - Netwerk"
 Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
 
 # 2. Gedeelde services (afhankelijk van het netwerk)
-Write-Output "Stap 2/6 - Gedeelde services (EFS, ELK, RDS)"
+Write-Output "Stap 2/7 - Gedeelde services (EFS, ELK, RDS)"
 Invoke-StackDeployment -StackName "cloudshirt-efs" -TemplateFile ".\cloudshirt-efs.yml"
 Invoke-StackDeployment -StackName "cloudshirt-elk" -TemplateFile ".\cloudshirt-elk.yml"
 Invoke-StackDeployment -StackName "cloudshirt-rds" -TemplateFile ".\cloudshirt-rds.yml"
 
 # 3. EC2-webservers (afhankelijk van EFS, ELK en RDS voor de installatie via UserData)
-Write-Output "Stap 3/6 - EC2-webservers"
+Write-Output "Stap 3/7 - EC2-webservers"
 Invoke-StackDeployment -StackName "cloudshirt-ec2" -TemplateFile ".\cloudshirt-ec2.yml" `
     -IncludeCredentials -IncludeBucket
 
-# 4. Load Balancer (afhankelijk van de EC2-instances als target)
-Write-Output "Stap 4/6 - Load Balancer"
-Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml"
-
-# 5. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
-Write-Output "Stap 5/6 - Auto Scaling Group"
-Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
-    -IncludeCredentials -IncludeBucket
-
-# 6. S3-bucket voor RDS-exports
-Write-Output "Stap 6/7 - S3-bucket"
+# 4. S3-bucket voor exports en ALB access logs
+Write-Output "Stap 4/7 - S3-bucket"
 Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3.yml" `
     -IncludeBucket
+
+# 5. Load Balancer (afhankelijk van de EC2-instances als target)
+Write-Output "Stap 5/7 - Load Balancer"
+Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml" `
+    -IncludeBucket
+
+# 6. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
+Write-Output "Stap 6/7 - Auto Scaling Group"
+Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
+    -IncludeCredentials -IncludeBucket
 
 # 7. Serverless Lambda export-monitor (REQ-08)
 #    Afhankelijk van cloudshirt-s3 (bucket moet bestaan vóór de Lambda wordt aangemaakt)

@@ -87,7 +87,7 @@ Resources:
               # Nginx directory maken voor logs
               mkdir -p /mnt/efs/nginx
 
-              
+
               # Nginx config
               cat >/etc/nginx/conf.d/cloudshirt.conf <<'NGINX'
               server {
@@ -213,20 +213,20 @@ Resources:
               cd "/home/ec2-user"
               echo "Current directory: $(pwd)"
 
-              curl -O https://raw.githubusercontent.com/537845Ahmed/CloudShirt/refs/heads/main/assignment1-awsbasics/export-rds.sh
-              chmod +x export-rds.sh
+              curl -fsSL -O https://raw.githubusercontent.com/Stensel8/cloud-engineering/main/cloud-automation-concepts/Assignment%201%20-%20AWS%20Basics/export-orders.sh
+              chmod +x export-orders.sh
 
-              curl -O https://raw.githubusercontent.com/537845Ahmed/CloudShirt/refs/heads/main/assignment1-awsbasics/configure-aws.sh
-              
+              curl -fsSL -O https://raw.githubusercontent.com/Stensel8/cloud-engineering/main/cloud-automation-concepts/Assignment%201%20-%20AWS%20Basics/configure-aws.sh
+
               sed -i \
               -e "s|<acceskey>|${AccessKey}|g" \
               -e "s|<secretaccesskey>|${SecretKey}|g" \
               -e "s|<sessiontoken>|${SessionToken}|g" \
               -e "s|<accountid>|${AccountId}|g" \
               /home/ec2-user/configure-aws.sh
-  
+
               chmod +x configure-aws.sh
-              
+
             - RDSENDPOINT:    !ImportValue cloudshirt-rds:RDSEndpointAddress
               RDS_SECRET_ARN: !ImportValue cloudshirt-rds:RDSSecretArn
               EFS_DNS:        !ImportValue cloudshirt-efs:EFSDNS
@@ -242,7 +242,7 @@ Resources:
       MinSize: 2
       MaxSize: 3
       DesiredCapacity: 2
-      VPCZoneIdentifier: 
+      VPCZoneIdentifier:
         - !ImportValue cloudshirt-network:CloudShirtFirstSubnet
         - !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       TargetGroupARNs:
