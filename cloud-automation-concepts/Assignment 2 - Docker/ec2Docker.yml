@@ -20,14 +20,6 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
     Description: Name of an existing EC2 KeyPair for SSH access
     Default: vockey
-  RepoUrl:
-    Type: String
-    Default: https://github.com/looking4ward/CloudShirt.git
-    Description: Git repository URL for the CloudShirt solution
-  RepoBranch:
-    Type: String
-    Default: main
-    Description: Branch to checkout
 
 Resources:
   ## =========================
