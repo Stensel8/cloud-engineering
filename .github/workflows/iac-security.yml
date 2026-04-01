@@ -1,0 +1,90 @@
+# IaC Security Scan (Checkov) - Controleert CloudFormation- en Terraform-bestanden
+# op beveiligingsproblemen en misconfiguraties.
+#
+# Jobs:
+#   scan - Scant alle CloudFormation- en Terraform-bestanden met Checkov.
+#          Resultaten worden als SARIF geüpload naar GitHub Security (Code Scanning).
+#          De workflow faalt NIET bij bevindingen (soft_fail), zodat je zelf
+#          kan beslissen welke bevindingen je oppakt.
+#
+# Checkov controleert onder andere:
+#   - Ontbrekende encryptie (S3, RDS, EBS)
+#   - Publiek toegankelijke resources
+#   - Ontbrekende logging en monitoring
+#   - Hardcoded secrets (basic detectie)
+#   - CIS Benchmark-regels
+#
+# Resultaten zijn zichtbaar via: GitHub → Security → Code scanning alerts
+name: IaC Security Scan
+
+on:
+  push:
+    paths:
+      - "cloud-automation-concepts/**/*.yml"
+      - "cloud-automation-concepts/**/*.yaml"
+      - "cloud-automation-concepts/**/*.tf"
+  pull_request:
+    paths:
+      - "cloud-automation-concepts/**/*.yml"
+      - "cloud-automation-concepts/**/*.yaml"
+      - "cloud-automation-concepts/**/*.tf"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write   # Vereist voor SARIF-upload naar GitHub Security
+
+concurrency:
+  group: iac-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Checkov IaC scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installeer Checkov
+        run: pip install checkov
+
+      - name: Scan CloudFormation-templates
+        id: checkov-cfn
+        continue-on-error: true
+        run: |
+          checkov \
+            --directory cloud-automation-concepts \
+            --framework cloudformation \
+            --output sarif \
+            --output-file-path checkov-cfn.sarif \
+            --soft-fail \
+            --compact
+        # --soft-fail: workflow mislukt niet bij bevindingen
+        # --compact:   beknoptere uitvoer in de logs
+
+      - name: Scan Terraform-bestanden
+        id: checkov-tf
+        continue-on-error: true
+        run: |
+          checkov \
+            --directory cloud-automation-concepts \
+            --framework terraform \
+            --output sarif \
+            --output-file-path checkov-tf.sarif \
+            --soft-fail \
+            --compact
+
+      - name: Upload CFN-resultaten naar GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-cfn.sarif
+          category: checkov-cloudformation
+
+      - name: Upload Terraform-resultaten naar GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-tf.sarif
+          category: checkov-terraform

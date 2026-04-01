@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  CloudShirt EC2-webservers — twee instances verdeeld over twee AZ's (REQ-01).
+  Beide instances starten vanuit dezelfde LaunchTemplate, zodat de configuratie
+  maar één keer gedefinieerd hoeft te worden.
+  Installeert: .NET 6, nginx, CloudShirt-applicatie, Filebeat en mssql-tools.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+
+  # AWS-credentials worden doorgegeven vanuit het deployment-script.
+  # Ze worden in de UserData gebruikt om de AWS CLI aan te roepen op de instance.
+  AccessKey:
+    Type: String
+    NoEcho: true
+  SecretKey:
+    Type: String
+    NoEcho: true
+  SessionToken:
+    Type: String
+    NoEcho: true
+  AccountId:
+    Type: String
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+    Description: EC2 instance type (t3.small aanbevolen voor .NET 6)
+
+  BucketName:
+    Type: String
+    Description: Naam van de S3-bucket voor RDS-exports
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Naam van een bestaand EC2 KeyPair voor SSH-toegang
+    Default: vockey
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/looking4ward/CloudShirt.git
+    Description: Git-repository URL van de CloudShirt-applicatie
+
+  RepoBranch:
+    Type: String
+    Default: main
+    Description: Branch om te klonen
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # -------------------------------------------------------------------------
+  # LaunchTemplate — gedeelde configuratie voor beide webservers
+  #
+  # Door de UserData hier één keer te definiëren vermijden we duplicatie.
+  # WebInstance1 en WebInstance2 verwijzen allebei naar deze template.
+  # Dit is hetzelfde patroon dat de Auto Scaling Group (cloudshirt-asg.yml)
+  # ook gebruikt.
+  # -------------------------------------------------------------------------
+  WebServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: CloudShirt-WebServer
+      LaunchTemplateData:
+        ImageId: ami-0254b2d5c4c472488   # Amazon Linux 2 (us-east-1)
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        SecurityGroupIds:
+          - !ImportValue base-stack:InstanceSG
+        UserData:
+          Fn::Base64: !Sub
+            - |
+              #!/bin/bash -xe
+              # ── AWS-omgevingsvariabelen instellen ─────────────────────────
+              # Vereist voor AWS CLI-commando's op de instance
+              export AWS_ACCESS_KEY_ID=${AccessKey}
+              export AWS_SECRET_ACCESS_KEY=${SecretKey}
+              export AWS_SESSION_TOKEN=${SessionToken}
+              export AWS_DEFAULT_REGION=us-east-1
+              export AWS_ACCOUNT_ID=${AccountId}
+
+              # ── Systeem bijwerken en basispakketten installeren ───────────
+              yum update -y
+              yum install -y gcc git unzip curl amazon-linux-extras amazon-efs-utils unixODBC unixODBC-devel
+
+              # ── .NET 6 installeren ────────────────────────────────────────
+              rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+              yum install -y aspnetcore-runtime-6.0 dotnet-sdk-6.0
+
+              # ── Nginx installeren en inschakelen ──────────────────────────
+              amazon-linux-extras install nginx1 -y
+              systemctl enable nginx
+
+              # ── EFS mounten (gedeeld bestandssysteem voor logs) ──────────
+              # Alle instances in de stack schrijven logs naar dezelfde EFS-map.
+              # rds-endpoint en s3-name worden hier opgeslagen zodat scripts
+              # ze kunnen lezen zonder hardcoded waarden.
+              mkdir -p /mnt/efs
+              mount -t efs -o tls ${EFS_DNS}:/ /mnt/efs
+              echo "${EFS_DNS}:/ /mnt/efs efs defaults,_netdev 0 0" >> /etc/fstab
+
+              # Sla configuratiewaarden op zodat scripts ze kunnen lezen
+              echo "${RDSENDPOINT}" > /mnt/efs/rds-endpoint
+              echo "${BucketName}"  > /mnt/efs/s3-name
+              echo "${DBPassword}"  > /mnt/efs/db-password
+
+              # Map voor nginx-logs op EFS aanmaken
+              mkdir -p /mnt/efs/nginx
+
+              # ── Nginx configureren als reverse proxy ──────────────────────
+              # Nginx stuurt al het verkeer op poort 80 door naar de .NET-app
+              # op poort 5000. Logs worden op EFS geschreven (REQ-03).
+              cat > /etc/nginx/conf.d/cloudshirt.conf <<'NGINX'
+              server {
+                  listen 80;
+                  server_name _;
+
+                  location / {
+                      proxy_pass         http://127.0.0.1:5000;
+                      proxy_http_version 1.1;
+                      proxy_set_header   Upgrade $http_upgrade;
+                      proxy_set_header   Connection keep-alive;
+                      proxy_set_header   Host $host;
+                      proxy_cache_bypass $http_upgrade;
+                      proxy_set_header   X-Real-IP $remote_addr;
+                      proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header   X-Forwarded-Proto $scheme;
+                      proxy_buffering    off;
+                  }
+
+                  # Logs op EFS schrijven zodat ze gedeeld zijn tussen instances (REQ-03)
+                  access_log /mnt/efs/nginx/access.log;
+                  error_log  /mnt/efs/nginx/error.log;
+              }
+              NGINX
+
+              # ── CloudShirt-applicatie klonen en bouwen ────────────────────
+              APPROOT="/opt/cloudshirt"
+              PUBLISH="$APPROOT/publish"
+              mkdir -p "$APPROOT"
+              chown ec2-user:ec2-user "$APPROOT"
+
+              sudo -u ec2-user bash -lc "
+                set -e
+                git clone --branch ${RepoBranch} ${RepoUrl} $APPROOT/src
+                cd $APPROOT/src/src/Web
+
+                # Verbindingsstrings aanpassen naar de RDS-instantie (REQ-04)
+                sed -i 's|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=${DBUsername};Password=${DBPassword};Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|' appsettings.json
+                sed -i 's|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=${DBUsername};Password=${DBPassword};Initial Catalog=Microsoft.eShopOnWeb.Identity;|' appsettings.json
+
+                dotnet restore
+                dotnet publish -c Release -o $PUBLISH
+              "
+
+              # ── Systemd-service aanmaken voor de .NET-applicatie ──────────
+              # Systemd start de app automatisch bij reboot en herstart hem
+              # bij een crash (Restart=always).
+              cat > /etc/systemd/system/cloudshirt.service <<'SERVICE'
+              [Unit]
+              Description=CloudShirt ASP.NET Core Web App
+              After=network.target
+
+              [Service]
+              WorkingDirectory=/opt/cloudshirt/publish
+              ExecStart=/usr/bin/dotnet /opt/cloudshirt/publish/Web.dll
+              Restart=always
+              RestartSec=5
+              KillSignal=SIGINT
+              SyslogIdentifier=cloudshirt
+              User=ec2-user
+              Environment=ASPNETCORE_ENVIRONMENT=Production
+              Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
+
+              [Install]
+              WantedBy=multi-user.target
+              SERVICE
+
+              systemctl daemon-reload
+              systemctl enable cloudshirt
+              systemctl start cloudshirt
+              systemctl restart nginx
+
+              # ── Filebeat installeren voor centrale logging naar ELK (REQ-06) ──
+              # Filebeat verstuurt systeemlogs naar Logstash op de ELK-server.
+              rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+
+              cat > /etc/yum.repos.d/elastic.repo <<'EOF'
+              [elastic-8.x]
+              name=Elastic repository for 8.x packages
+              baseurl=https://artifacts.elastic.co/packages/8.x/yum
+              gpgcheck=1
+              gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+              enabled=1
+              autorefresh=1
+              type=rpm-md
+              EOF
+
+              yum install -y filebeat
+
+              # Standaard Elasticsearch-output uitschakelen (we gebruiken Logstash)
+              sed -i 's/^output.elasticsearch:/#output.elasticsearch:/' /etc/filebeat/filebeat.yml
+              sed -i 's/^  hosts:/#  hosts:/'                          /etc/filebeat/filebeat.yml
+
+              # Logstash-output configureren (poort 5044)
+              cat >> /etc/filebeat/filebeat.yml <<EOT
+
+              output.logstash:
+                hosts: ["${ELKPublicIP}:5044"]
+              EOT
+
+              # Systeemmodule inschakelen (syslog + auth-logs)
+              filebeat modules enable system
+
+              cat > /etc/filebeat/modules.d/system.yml <<'EOF'
+              - module: system
+                syslog:
+                  enabled: true
+                  var.paths: ["/var/log/messages"]
+                auth:
+                  enabled: true
+                  var.paths: ["/var/log/secure"]
+              EOF
+
+              systemctl enable filebeat
+              systemctl restart filebeat
+
+              # ── mssql-tools installeren (bcp + sqlcmd voor REQ-07) ────────
+              # bcp wordt gebruikt door export-orders.sh om de ordertabel
+              # naar S3 te exporteren.
+              curl -O https://packages.microsoft.com/rhel/8/prod/msodbcsql17-17.10.6.1-1.x86_64.rpm
+              ACCEPT_EULA=Y yum localinstall -y msodbcsql17-17.10.6.1-1.x86_64.rpm
+
+              curl -O https://packages.microsoft.com/rhel/8/prod/mssql-tools-17.10.1.1-1.x86_64.rpm
+              ACCEPT_EULA=Y yum localinstall -y mssql-tools-17.10.1.1-1.x86_64.rpm
+
+              echo 'export PATH="$PATH:/opt/mssql-tools/bin"' > /etc/profile.d/mssql-tools.sh
+              chmod +x /etc/profile.d/mssql-tools.sh
+
+              # ── Export-script downloaden van onze eigen repo ──────────────
+              # Hierdoor is het script beschikbaar op elke instance die start,
+              # zonder dat het in de AMI gebakken hoeft te worden.
+              cd /home/ec2-user
+              curl -fsSL -O https://raw.githubusercontent.com/Stensel8/cloud-engineering/main/cloud-automation-concepts/Assignment%201%20-%20AWS%20Basics/export-orders.sh
+              chmod +x export-orders.sh
+
+              # Dagelijkse cron-job voor de order-export (REQ-07): elke dag om 02:00
+              echo "0 2 * * * ec2-user /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1" \
+                > /etc/cron.d/cloudshirt-export
+
+            - RDSENDPOINT: !ImportValue rds-stack:RDSEndpointAddress
+              DBUsername:  !ImportValue rds-stack:RDSUsername
+              DBPassword:  !ImportValue rds-stack:RDSPassword
+              EFS_DNS:     !ImportValue efs-stack:EFSDNS
+              ELKPublicIP: !ImportValue elk-stack:ELKPublicIP
+
+  # -------------------------------------------------------------------------
+  # WebInstance1 — publiek subnet in AZ1 (us-east-1a)
+  # -------------------------------------------------------------------------
+  WebInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLaunchTemplate
+        Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
+      SubnetId: !ImportValue base-stack:CloudShirtFirstSubnet
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Web-1
+        - Key: Project
+          Value: CloudShirt
+        - Key: Environment
+          Value: dev
+
+  # -------------------------------------------------------------------------
+  # WebInstance2 — publiek subnet in AZ2 (us-east-1b)
+  #
+  # Door een tweede instance in een andere AZ te draaien, blijft de applicatie
+  # beschikbaar als één AZ uitvalt (REQ-01: high availability).
+  # -------------------------------------------------------------------------
+  WebInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLaunchTemplate
+        Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
+      SubnetId: !ImportValue base-stack:CloudShirtSecondSubnet
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Web-2
+        - Key: Project
+          Value: CloudShirt
+        - Key: Environment
+          Value: dev
+
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
+Outputs:
+
+  Instance1Id:
+    Description: EC2 Instance 1 ID
+    Value: !Ref WebInstance1
+    Export:
+      Name: !Sub "${AWS::StackName}:Instance1"
+
+  Instance2Id:
+    Description: EC2 Instance 2 ID
+    Value: !Ref WebInstance2
+    Export:
+      Name: !Sub "${AWS::StackName}:Instance2"

@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # GitHub Actions — houdt workflow-versies actueel
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -7,8 +8,17 @@ updates:
     commit-message:
       prefix: "chore"
 
+  # Python (cfn-lint, checkov)
   - package-ecosystem: "pip"
     directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+
+  # Terraform providers en modules
+  - package-ecosystem: "terraform"
+    directory: "/cloud-automation-concepts/Assignment 3 - Orchestration/terraform"
     schedule:
       interval: "weekly"
     commit-message:
