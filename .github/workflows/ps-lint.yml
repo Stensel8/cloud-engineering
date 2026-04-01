@@ -1,0 +1,69 @@
+# PowerShell Lint - Statische analyse op alle PowerShell-scripts.
+#
+# Jobs:
+#   lint - Analyseert alle .ps1-bestanden met PSScriptAnalyzer.
+#          Geeft fouten en waarschuwingen als annotaties terug in de PR.
+#
+# PSScriptAnalyzer controleert onder andere:
+#   - Gebruik van goedgekeurde werkwoorden (Approved Verbs)
+#   - Ongebruikte variabelen
+#   - Verouderde of gevaarlijke cmdlets
+#   - Stijlregels (inspringen, haakjes, etc.)
+name: PowerShell Lint
+
+on:
+  push:
+    paths:
+      - "**/*.ps1"
+  pull_request:
+    paths:
+      - "**/*.ps1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ps-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installeer PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -SkipPublisherCheck -Scope CurrentUser
+
+      - name: Analyseer PowerShell-scripts
+        id: analyze
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem -Recurse -Filter "*.ps1" | Select-Object -ExpandProperty FullName
+          if ($scripts.Count -eq 0) {
+            Write-Host "Geen .ps1-bestanden gevonden."
+            exit 0
+          }
+
+          $results = $scripts | ForEach-Object {
+            Invoke-ScriptAnalyzer -Path $_ -Severity @("Error", "Warning") -ReportSummary
+          }
+
+          if ($results) {
+            $results | Format-Table -AutoSize
+            # Zet resultaten om naar GitHub Annotations
+            foreach ($r in $results) {
+              $level = if ($r.Severity -eq "Error") { "error" } else { "warning" }
+              $file  = $r.ScriptPath.Replace("$env:GITHUB_WORKSPACE\", "").Replace("\", "/")
+              Write-Host "::$level file=$file,line=$($r.Line),col=$($r.Column)::[$($r.RuleName)] $($r.Message)"
+            }
+            exit 1
+          }
+
+          Write-Host "Geen problemen gevonden."

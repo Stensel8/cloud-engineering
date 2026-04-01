@@ -1,0 +1,33 @@
+# Alle tekstbestanden altijd met LF opslaan, ook op Windows.
+# Dit voorkomt CRLF-waarschuwingen bij git en inconsistenties tussen platforms. LF wordt gezien als de universele vorm van newline, terwijl Windows soms nog automatisch CRLF gebruikt. Door deze regel te gebruiken, zorg je ervoor dat alle tekstbestanden consistent worden opgeslagen, ongeacht het besturingssysteem van de gebruiker. Hierdoor worden de meest vreemde problemen al voorkomen.
+
+* text=auto eol=lf
+
+# Expliciet tekstbestanden
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.sh        text eol=lf
+*.ps1       text eol=lf
+*.tf        text eol=lf
+*.tfvars    text eol=lf
+*.j2        text eol=lf
+*.ini       text eol=lf
+*.cfg       text eol=lf
+*.txt       text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.js        text eol=lf
+*.toml      text eol=lf
+
+# Binaire bestanden — nooit aanraken
+*.avif      binary
+*.jxl       binary
+*.webp      binary
+*.webm      binary
+*.png       binary
+*.jpg       binary
+*.pdf       binary
+*.zip       binary
+*.pem       binary

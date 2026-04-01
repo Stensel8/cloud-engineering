@@ -1,0 +1,59 @@
+# ShellCheck - Statische analyse op alle Bash-scripts.
+#
+# Jobs:
+#   lint - Controleert alle .sh-bestanden op veelvoorkomende fouten,
+#          onveilig gebruik van variabelen, quoting-problemen, etc.
+#
+# ShellCheck ondersteunt bash, sh, dash en ksh.
+name: ShellCheck
+
+on:
+  push:
+    paths:
+      - "**/*.sh"
+  pull_request:
+    paths:
+      - "**/*.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: shellcheck-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installeer ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Analyseer shell-scripts
+        id: check
+        continue-on-error: true
+        run: |
+          # Zoek alle .sh-bestanden (excl. vendor/node_modules)
+          mapfile -d '' files < <(find . -name "*.sh" \
+            -not -path "./.git/*" \
+            -not -path "./node_modules/*" \
+            -print0)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Geen shell-scripts gevonden."
+            exit 0
+          fi
+
+          # --format=gcc geeft GitHub-compatibele annotaties
+          shellcheck --format=gcc --severity=warning "${files[@]}"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Faal als er fouten zijn
+        if: steps.check.outputs.exit_code != '0'
+        run: exit 1

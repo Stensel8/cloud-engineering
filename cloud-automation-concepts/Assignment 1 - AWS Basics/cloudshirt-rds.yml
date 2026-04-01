@@ -1,0 +1,102 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Deploy Amazon RDS SQL Server instance and two Amazon Linux 2 EC2 instances with .NET 6, 
+  nginx reverse proxy, and CloudShirt web app configured to use the RDS database.
+
+Parameters:
+  DBAllocatedStorage:
+    Type: Number
+    Default: 30
+    Description: The size of the database (Gb)
+
+Resources:
+  RDSMonitoringRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: monitoring.rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
+
+  CloudShirtDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: CloudShirt RDS subnet group
+      SubnetIds:
+        - !ImportValue cloudshirt-network:CloudShirtFirstPrivateSubnet
+        - !ImportValue cloudshirt-network:CloudShirtSecondPrivateSubnet
+      Tags:
+        - Key: Name
+          Value: CloudShirt-DBSubnetGroup
+
+  CloudShirtDBSecretKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS key for CloudShirt RDS Secrets Manager secret
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+
+  CloudShirtDBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Credentials for CloudShirt RDS master user
+      KmsKeyId: !Ref CloudShirtDBSecretKMSKey
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"csadmin"}'
+        GenerateStringKey: password
+        PasswordLength: 20
+        ExcludeCharacters: '"@/\\'
+
+  CloudShirtRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_157
+            comment: "SQL Server Express (sqlserver-ex) does not support Multi-AZ"
+    Properties:
+      DBInstanceIdentifier: cloudshirt-db
+      Engine: sqlserver-ex
+      DBInstanceClass: db.t3.medium
+      AllocatedStorage: !Ref DBAllocatedStorage
+      MasterUsername: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:username}}"
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:password}}"
+      LicenseModel: license-included
+      StorageEncrypted: true
+      MonitoringInterval: 60
+      MonitoringRoleArn: !GetAtt RDSMonitoringRole.Arn
+      VPCSecurityGroups:
+        - !ImportValue cloudshirt-network:rdsSG
+      DBSubnetGroupName: !Ref CloudShirtDBSubnetGroup
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 1
+      MultiAZ: false
+      StorageType: gp2
+      DeletionProtection: false
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+Outputs:
+  RDSEndpointAddress:
+    Description: The RDS endpoint address
+    Value: !GetAtt CloudShirtRDSInstance.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}:RDSEndpointAddress"
+
+  RDSSecretArn:
+    Description: ARN for the generated RDS credentials secret
+    Value: !Ref CloudShirtDBSecret
+    Export:
+      Name: !Sub "${AWS::StackName}:RDSSecretArn"

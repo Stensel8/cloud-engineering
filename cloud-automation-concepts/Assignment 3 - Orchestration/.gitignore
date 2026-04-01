@@ -1,0 +1,9 @@
+# Terraform state en gevoelige bestanden
+*.tfstate
+*.tfstate.backup
+terraform.tfvars
+.terraform/
+*.tfplan
+
+# GCP service account keys
+*.json

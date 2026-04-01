@@ -1,0 +1,215 @@
+Description: Week 1 uitwerking - VPC met publiek subnet, internet gateway en EC2-instance met nginx.
+
+# Parameters worden bij deploy ingevuld (of via de console opgegeven).
+Parameters:
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Naam van een bestaand EC2 key pair om via SSH in te loggen.
+
+  SSHCidr:
+    Type: String
+    Description: IP-bereik dat SSH-toegang heeft tot de instance.
+    Default: 10.0.0.0/16
+
+
+# -------------------------------------------------------------------
+# Resources
+# -------------------------------------------------------------------
+Resources:
+
+  # -----------------------------------------------------------------
+  # 1. VPC
+  # Het basisnetwerk. CIDR 10.0.0.0/16 biedt ruimte voor 65.536 adressen.
+  # -----------------------------------------------------------------
+  MyfirstVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: myfirstVPC
+        - Key: Omgeving
+          Value: Productie
+
+
+  # -----------------------------------------------------------------
+  # 2. Subnet
+  # Publiek subnet in de VPC. CIDR 10.0.1.0/24 = 256 adressen.
+  # MapPublicIpOnLaunch zorgt dat instances automatisch een publiek IP krijgen.
+  # -----------------------------------------------------------------
+  PubliekSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyfirstVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: publiek-subnet
+
+
+  # -----------------------------------------------------------------
+  # 3. Internet Gateway
+  # Verbindt de VPC met het publieke internet.
+  # Zonder internet gateway kan geen enkel verkeer de VPC verlaten.
+  # -----------------------------------------------------------------
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: myfirst-igw
+
+
+  # -----------------------------------------------------------------
+  # 4. Internet Gateway Attachment
+  # Koppelt de internet gateway aan de VPC.
+  # CloudFormation maakt deze koppeling NIET automatisch - dit is verplicht.
+  # -----------------------------------------------------------------
+  IGWAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyfirstVPC
+      InternetGatewayId: !Ref InternetGateway
+
+
+  # -----------------------------------------------------------------
+  # 5. Routetabel
+  # Bepaalt hoe verkeer binnen de VPC wordt gerouteerd.
+  # -----------------------------------------------------------------
+  PubliekeRoutetabel:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyfirstVPC
+      Tags:
+        - Key: Name
+          Value: publieke-routetabel
+
+  # Standaardroute: al het uitgaande verkeer (0.0.0.0/0) via de internet gateway.
+  # DependsOn zorgt dat de attachment klaar is voordat de route wordt aangemaakt.
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IGWAttachment
+    Properties:
+      RouteTableId: !Ref PubliekeRoutetabel
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+
+  # -----------------------------------------------------------------
+  # 6. Routetabel-associatie
+  # Koppelt de routetabel aan het subnet.
+  # Zonder deze koppeling gebruikt het subnet de standaard VPC-routetabel
+  # en heeft het geen toegang tot de internet gateway.
+  # -----------------------------------------------------------------
+  SubnetRoutetabelAssociatie:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PubliekSubnet
+      RouteTableId: !Ref PubliekeRoutetabel
+
+
+  # -----------------------------------------------------------------
+  # 7. Beveiligingsgroep
+  # Firewall op instance-niveau. Bepaalt welk inkomend verkeer is toegestaan.
+  # Uitgaand verkeer is standaard volledig open (-1 = alle protocollen).
+  # -----------------------------------------------------------------
+  WebBeveiligingsgroep:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_24
+            comment: "Port 80 must be open for public nginx web server traffic"
+    Properties:
+      GroupDescription: Sta HTTP en SSH toe
+      VpcId: !Ref MyfirstVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHCidr
+          Description: Allow SSH access for management
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Allow HTTP web traffic
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: Allow HTTPS web traffic
+      Tags:
+        - Key: Name
+          Value: web-beveiligingsgroep
+
+
+  # -----------------------------------------------------------------
+  # 8. EC2-instance
+  # Draait in het publieke subnet. Nginx wordt automatisch geinstalleerd
+  # via UserData (een shellscript dat bij de eerste boot wordt uitgevoerd).
+  # -----------------------------------------------------------------
+  WebInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      # Dynamische verwijzing naar de nieuwste Amazon Linux 2023 AMI via SSM.
+      # Zo hoef je de AMI-ID niet handmatig bij te houden.
+      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-x86_64}}'
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PubliekSubnet
+      SecurityGroupIds:
+        - !Ref WebBeveiligingsgroep
+      UserData:
+        # Fn::Base64 versleutelt het script naar Base64 - vereist formaat voor UserData.
+        Fn::Base64: |
+          #!/bin/bash
+          dnf install -y nginx
+          systemctl enable nginx
+          systemctl start nginx
+      Tags:
+        - Key: Name
+          Value: web-instance
+
+
+# -------------------------------------------------------------------
+# Outputs
+# -------------------------------------------------------------------
+Outputs:
+
+  PubliekIP:
+    Description: Publiek IP-adres van de EC2-instance
+    Value: !GetAtt WebInstance.PublicIp
+
+  NginxURL:
+    Description: Directe URL naar nginx
+    Value: !Sub "http://${WebInstance.PublicIp}"
+
+
+# -------------------------------------------------------------------
+# CloudFormation Commands
+# -------------------------------------------------------------------
+# Aanmaken:
+#   aws cloudformation create-stack \
+#     --stack-name stensel-stack \
+#     --template-body file://stensel-stack.yaml \
+#     --parameters ParameterKey=KeyName,ParameterValue=<jouw-key-naam> \
+#     --region us-east-1
+#
+# Status controleren:
+#   aws cloudformation describe-stacks --stack-name stensel-stack --region us-east-1
+#
+# Events bekijken:
+#   aws cloudformation describe-stack-events --stack-name stensel-stack --region us-east-1
+#
+# Bijwerken (na wijzigingen):
+#   aws cloudformation update-stack \
+#     --stack-name stensel-stack \
+#     --template-body file://stensel-stack.yaml \
+#     --parameters ParameterKey=KeyName,ParameterValue=<jouw-key-naam> \
+#     --region us-east-1
+#
+# Verwijderen:
+#   aws cloudformation delete-stack --stack-name stensel-stack --region us-east-1
