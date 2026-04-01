@@ -253,4 +253,3 @@ Resources:
       ScheduledActionName: ScaleInAfterSpike
       DesiredCapacity: 2
       Recurrence: "0 1 * * *"   # 20:00 EST (UTC-5) / 21:00 EDT (UTC-4), volgende dag UTC
-

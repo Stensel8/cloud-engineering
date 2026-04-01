@@ -1,5 +1,5 @@
 # Alle tekstbestanden altijd met LF opslaan, ook op Windows.
-# Dit voorkomt CRLF-waarschuwingen bij git en inconsistenties tussen platforms.
+# Dit voorkomt CRLF-waarschuwingen bij git en inconsistenties tussen platforms. LF wordt gezien als de universele vorm van newline, terwijl Windows soms nog automatisch CRLF gebruikt. Door deze regel te gebruiken, zorg je ervoor dat alle tekstbestanden consistent worden opgeslagen, ongeacht het besturingssysteem van de gebruiker. Hierdoor worden de meest vreemde problemen al voorkomen.
 
 * text=auto eol=lf
 

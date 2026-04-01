@@ -30,4 +30,3 @@ Deze repository heeft specifieke regels voor commits, pull requests en mediabest
 Dit is een lopend project voor educatieve doeleinden. Code, configuraties en documentatie kunnen gedurende de cursus nog veranderen.
 
 ---
-

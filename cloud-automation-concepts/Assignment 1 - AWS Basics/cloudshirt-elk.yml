@@ -170,5 +170,3 @@ Outputs:
     Value: !Ref ELKSecurityGroup
     Export:
       Name: !Sub "${AWS::StackName}:ELKSecurityGroup"
-
-
