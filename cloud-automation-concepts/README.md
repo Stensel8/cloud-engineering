@@ -20,7 +20,7 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 | Week 1 | Introductie & CloudFormation | [Week 1/](Week%201/) |
 | Week 2 | Networking en Elasticity | [Week 2/](Week%202/) |
 | Week 3 | Databases en Storage | [Week 3/](Week%203/) |
-| Week 4 | File Storage en Backup | [Week 4/](Week%204/) |
+| Week 4 | File Storage en Backup (AWS CLI, S3, EFS) | [Week 4/](Week%204/) |
 
 ---
 
