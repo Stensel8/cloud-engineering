@@ -228,6 +228,10 @@ function Invoke-StackDeployment {
 
         Write-Output "    Wachten op aanmaken..."
         aws cloudformation wait stack-create-complete --stack-name $StackName
+        if ($LASTEXITCODE -ne 0) {
+            Write-Output "    FOUT: stack '$StackName' heeft ROLLBACK_COMPLETE bereikt. Controleer de CloudFormation-events in de AWS Console."
+            exit 1
+        }
         Write-Output "    Aangemaakt."
     }
 }
@@ -243,7 +247,7 @@ Write-Section "Deployment starten"
 # 1. Netwerk-basisinfrastructuur (VPC, subnetten, gateways, security groups)
 #    Alle andere stacks zijn hiervan afhankelijk.
 Write-Output "Stap 1/6 - Netwerk"
-Invoke-StackDeployment -StackName "base-stack" -TemplateFile ".\cloudshirt-network.yml"
+Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
 
 # 2. Gedeelde services (afhankelijk van het netwerk)
 Write-Output "Stap 2/6 - Gedeelde services (EFS, ELK, RDS)"

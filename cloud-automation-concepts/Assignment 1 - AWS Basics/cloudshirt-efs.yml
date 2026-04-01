@@ -5,7 +5,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow NFS access to CloudShirt EFS
-      VpcId: !ImportValue base-stack:VPC
+      VpcId: !ImportValue cloudshirt-network:VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 2049
@@ -27,7 +27,7 @@ Resources:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref CloudShirtEFS
-      SubnetId: !ImportValue base-stack:CloudShirtFirstSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtFirstSubnet
       SecurityGroups:
         - !Ref CloudShirtEFSSG
 
@@ -35,7 +35,7 @@ Resources:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref CloudShirtEFS
-      SubnetId: !ImportValue base-stack:CloudShirtSecondSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       SecurityGroups:
         - !Ref CloudShirtEFSSG
 

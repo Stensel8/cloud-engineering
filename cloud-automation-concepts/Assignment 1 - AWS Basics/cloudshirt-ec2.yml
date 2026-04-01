@@ -70,7 +70,7 @@ Resources:
         InstanceType: !Ref InstanceType
         KeyName: !Ref KeyName
         SecurityGroupIds:
-          - !ImportValue base-stack:InstanceSG
+          - !ImportValue cloudshirt-network:InstanceSG
         UserData:
           Fn::Base64: !Sub
             - |
@@ -267,7 +267,7 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref WebServerLaunchTemplate
         Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
-      SubnetId: !ImportValue base-stack:CloudShirtFirstSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtFirstSubnet
       Tags:
         - Key: Name
           Value: CloudShirt-Web-1
@@ -288,7 +288,7 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref WebServerLaunchTemplate
         Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
-      SubnetId: !ImportValue base-stack:CloudShirtSecondSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       Tags:
         - Key: Name
           Value: CloudShirt-Web-2

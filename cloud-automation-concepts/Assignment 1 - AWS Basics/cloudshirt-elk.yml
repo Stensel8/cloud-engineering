@@ -17,7 +17,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow SSH + ELK traffic
-      VpcId: !ImportValue base-stack:VPC
+      VpcId: !ImportValue cloudshirt-network:VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
@@ -59,7 +59,7 @@ Resources:
       ImageId: ami-0b0dcb5067f052a63 # Amazon Linux 2023 (us-east-1)
       InstanceType: t3.large
       KeyName: !Ref KeyName
-      SubnetId: !ImportValue base-stack:CloudShirtSecondSubnet
+      SubnetId: !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       SecurityGroupIds:
         - !Ref ELKSecurityGroup
       BlockDeviceMappings:

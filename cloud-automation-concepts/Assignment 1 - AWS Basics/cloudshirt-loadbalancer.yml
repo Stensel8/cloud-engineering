@@ -10,7 +10,7 @@ Resources:
   WebTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      VpcId: !ImportValue base-stack:VPC
+      VpcId: !ImportValue cloudshirt-network:VPC
       Protocol: HTTP
       Port: 80
       TargetType: instance
@@ -25,10 +25,10 @@ Resources:
     Properties:
       Name: cloudshirt-alb
       Subnets:
-        - !ImportValue base-stack:CloudShirtFirstSubnet
-        - !ImportValue base-stack:CloudShirtSecondSubnet
+        - !ImportValue cloudshirt-network:CloudShirtFirstSubnet
+        - !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       SecurityGroups:
-        - !ImportValue base-stack:InstanceSG
+        - !ImportValue cloudshirt-network:InstanceSG
       Scheme: internet-facing
       Type: application
 
