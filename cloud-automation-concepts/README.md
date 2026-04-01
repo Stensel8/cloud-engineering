@@ -26,16 +26,29 @@ Bouw een AWS CloudFormation-oplossing die alle negen leerdoelen dekt en voldoet 
 
 **Deliverables:** CloudFormation-templates en scripts, plus een rapport (~5 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
-| Requirement | Omschrijving |
-|-------------|-------------|
-| REQ-01 | CloudShirt .NET-applicatie (of andere webapplicatie) is highly available over meerdere AZ's via één URL |
-| REQ-02 | Automatisch schalen tijdens piekuren (18:00-20:00 Eastern) |
-| REQ-03 | EFS wordt gebruikt voor dagelijkse opslag van applicatie-/webserverlogbestanden |
-| REQ-04 | RDS-database ingericht via IaC |
-| REQ-05 | Monitoringoplossing (ELK Stack v8.x of alternatief) ingericht via IaC |
-| REQ-06 | *(Optioneel, meer punten)* Logs zichtbaar in Elastic Stack via FileBeat |
-| REQ-07 | Scriptmatige export van de ordertabel naar een S3-bucket |
-| REQ-08 | AWS serverless-applicatie aangemaakt, bij voorkeur nuttig in de eigen omgeving |
+- [ ] **REQ-01** — Applicatie is highly available over meerdere AZ's via één URL
+  → [`cloudshirt-ec2.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) (WebInstance1 + WebInstance2 in us-east-1a/b) · [`cloudshirt-loadbalancer.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-loadbalancer.yml) (ALB)
+
+- [ ] **REQ-02** — Automatisch schalen tijdens piekuren (18:00–20:00 Eastern)
+  → [`cloudshirt-asg.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-asg.yml) (Scheduled Actions: scale-out 23:00 UTC / scale-in 01:00 UTC)
+
+- [ ] **REQ-03** — EFS voor dagelijkse opslag van applicatie-/webserverlogbestanden
+  → [`cloudshirt-efs.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-efs.yml) (EFS filesystem) · [`cloudshirt-ec2.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) (nginx logs → `/mnt/efs/nginx/`)
+
+- [ ] **REQ-04** — RDS-database ingericht via IaC
+  → [`cloudshirt-rds.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-rds.yml) (SQL Server Express, private subnetten)
+
+- [ ] **REQ-05** — Monitoringoplossing (ELK Stack v8.x) ingericht via IaC
+  → [`cloudshirt-elk.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-elk.yml) (Elasticsearch + Logstash + Kibana)
+
+- [ ] **REQ-06** — *(Optioneel, meer punten)* Logs zichtbaar in Elastic Stack via Filebeat
+  → [`cloudshirt-ec2.yml`](Assignment%201%20-%20AWS%20Basics/cloudshirt-ec2.yml) (Filebeat-installatie in UserData, stuurt naar Logstash:5044)
+
+- [ ] **REQ-07** — Scriptmatige export van de ordertabel naar S3
+  → [`export-orders.sh`](Assignment%201%20-%20AWS%20Basics/export-orders.sh) (bcp → CSV → S3, dagelijkse cron om 02:00)
+
+- [ ] **REQ-08** — AWS serverless-applicatie aangemaakt
+  → *(nog te implementeren)*
 
 ### Assignment 2: Docker in the Cloud
 
@@ -45,15 +58,26 @@ Bouw voort op Assignment 1. Dockeriseer de applicatie en richt een Docker-infras
 
 **Deliverables:** Templates en scripts, plus een rapport (~3 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
-| Requirement | Omschrijving |
-|-------------|-------------|
-| REQ-08 | De CloudShirt .NET-applicatie (of andere applicatie) is gedockeriseerd |
-| REQ-09 | De applicatie wordt gebouwd op een aparte EC2-instance in het private subnet (Buildserver) |
-| REQ-10 | Docker Compose wordt gebruikt om services te definiëren en uit te rollen |
-| REQ-11 | Applicatie-images worden 's nachts gebouwd op de Buildserver (nightly builds) |
-| REQ-12 | Applicatie-images worden gepusht naar AWS ECR of Docker Hub tijdens de nightly builds |
-| REQ-13 | De Buildserver is geconfigureerd als master in een Docker Swarm-cluster |
-| REQ-14 | De instances in de ASG zijn geconfigureerd als workers in het Docker Swarm-cluster |
+- [ ] **REQ-08** — Applicatie is gedockeriseerd
+  → *(Dockerfile nog toe te voegen)*
+
+- [ ] **REQ-09** — Applicatie wordt gebouwd op een Buildserver in het private subnet
+  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (EC2 in private subnet, bouwt en pusht images)
+
+- [ ] **REQ-10** — Docker Compose wordt gebruikt om services te definiëren en uit te rollen
+  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (Docker Compose geïnstalleerd) · *(docker-compose.yml nog toe te voegen)*
+
+- [ ] **REQ-11** — Nightly builds op de Buildserver
+  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) · *(cron-job nog toe te voegen)*
+
+- [ ] **REQ-12** — Images worden gepusht naar AWS ECR tijdens de nightly builds
+  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (ECR push in UserData)
+
+- [ ] **REQ-13** — Buildserver is geconfigureerd als Swarm Manager
+  → [`buildserver.yml`](Assignment%202%20-%20Docker/buildserver.yml) (`docker swarm init`, token op EFS)
+
+- [ ] **REQ-14** — ASG-instances zijn geconfigureerd als Swarm Workers
+  → [`dockerasg.yml`](Assignment%202%20-%20Docker/dockerasg.yml) (leest join-token van EFS, voegt toe aan Swarm)
 
 ### Assignment 3: Cloud Orchestration
 
@@ -63,16 +87,29 @@ Bouw voort op Assignments 1 en 2. Gebruik Terraform en Ansible in een multi-clou
 
 **Deliverables:** Templates en scripts, plus een rapport (~3 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
-| Requirement | Omschrijving |
-|-------------|-------------|
-| REQ-15 | AWS-resources worden uitgerold met Terraform |
-| REQ-16 | Een applicatie wordt uitgerold op GCP of AWS via Terraform (Docker Compose en/of RDS mag worden gebruikt) |
-| REQ-17 | Gebruikers bereiken de applicatie via één extern IP-adres |
-| REQ-18 | Docker-images worden gehost op Artifact Registry of AWS ECR |
-| REQ-19 | Een Kubernetes-cluster wordt op een geautomatiseerde manier uitgerold op GCP of AWS (GKE of AKS mag worden gebruikt) |
-| REQ-20 | Het Kubernetes-cluster bestaat uit een Master die 5 replica's van de applicatie aanstuurt |
-| REQ-21 | Ansible wordt gebruikt voor de configuratie van het Kubernetes-cluster |
-| REQ-22 | Ansible wordt gebruikt om logbestanden op te halen van de applicatie op AWS of GCP |
+- [ ] **REQ-15** — AWS-resources worden uitgerold met Terraform
+  → [`terraform/modules/aws/`](Assignment%203%20-%20Orchestration/terraform/modules/aws/) (CloudFormation-stacks via Terraform-wrappers)
+
+- [ ] **REQ-16** — Applicatie uitgerold op GCP via Terraform
+  → [`terraform/modules/gcp/`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/) (GKE, netwerk, loadbalancer)
+
+- [ ] **REQ-17** — Gebruikers bereiken de applicatie via één extern IP-adres
+  → [`terraform/modules/gcp/loadbalancer/main.tf`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/loadbalancer/main.tf) (GCP Global HTTP Load Balancer)
+
+- [ ] **REQ-18** — Docker-images gehost op Artifact Registry
+  → [`terraform/modules/gcp/artifact_registry/main.tf`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/artifact_registry/main.tf)
+
+- [ ] **REQ-19** — Kubernetes-cluster op geautomatiseerde manier uitgerold op GCP
+  → [`terraform/modules/gcp/gke_cluster/main.tf`](Assignment%203%20-%20Orchestration/terraform/modules/gcp/gke_cluster/main.tf) (GKE cluster)
+
+- [ ] **REQ-20** — Kubernetes-cluster: Master met 5 replica's van de applicatie
+  → [`ansible/roles/gke_config/templates/deployment.yml.j2`](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/templates/deployment.yml.j2) (replicas: 5)
+
+- [ ] **REQ-21** — Ansible configureert het Kubernetes-cluster
+  → [`ansible/playbooks/gke_config.yml`](Assignment%203%20-%20Orchestration/ansible/playbooks/gke_config.yml) · [`ansible/roles/gke_config/`](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/)
+
+- [ ] **REQ-22** — Ansible verzamelt logbestanden van de applicatie
+  → [`ansible/playbooks/log_collector.yml`](Assignment%203%20-%20Orchestration/ansible/playbooks/log_collector.yml) · [`ansible/roles/log_collection/`](Assignment%203%20-%20Orchestration/ansible/roles/log_collection/)
 
 ---
 
