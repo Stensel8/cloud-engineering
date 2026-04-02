@@ -1,9 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   CloudShirt S3-stack (REQ-07).
-  Voorziet in een versleutelde S3-bucket voor RDS-exports van de ordertabel.
-  Een aparte log-bucket slaat de access logs op van de hoofdbucket.
-  Beide buckets hebben publieke toegang volledig geblokkeerd.
+  Voorziet in een S3-bucket voor RDS-exports van de ordertabel.
+  Publieke toegang is volledig geblokkeerd.
 
 # ---------------------------------------------------------------------------
 # Parameters
@@ -13,28 +12,12 @@ Parameters:
   BucketName:
     Type: String
     Description: Naam van de S3-bucket voor RDS-exports
-    Default: rds-export-bucket-cloudshirt-luca
 
 # ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
 Resources:
 
-  # ── Log-bucket voor access logs van de hoofdbucket ───────────────────────
-  RDSExportBucketLogs:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "${BucketName}-logs"
-      VersioningConfiguration:
-        Status: Enabled
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-
-  # ── Hoofdbucket voor de RDS order-exports ────────────────────────────────
-  # Versioning is ingeschakeld zodat exports niet per ongeluk overschreven worden.
   RDSExportBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -46,9 +29,6 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      LoggingConfiguration:
-        DestinationBucketName: !Ref RDSExportBucketLogs
-        LogFilePrefix: access-logs/
 
 # ---------------------------------------------------------------------------
 # Outputs

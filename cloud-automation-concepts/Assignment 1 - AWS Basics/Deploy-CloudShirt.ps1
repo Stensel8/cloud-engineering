@@ -146,14 +146,13 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
 
 Write-Output "Account ID: $AccountId"
 
-# S3-bucketnaam opvragen als niet meegegeven als parameter
+# S3-bucketnaam opvragen; standaard op account-ID gebaseerde naam zodat die uniek is
+$DefaultBucketName = "cloudshirt-exports-$AccountId"
 if ([string]::IsNullOrWhiteSpace($BucketName)) {
-    $BucketName = Read-Host "Geef een naam voor de S3-bucket (bijv. cloudshirt-exports-$AccountId)"
-}
-
-if ([string]::IsNullOrWhiteSpace($BucketName)) {
-    Write-Output "FOUT: S3-bucketnaam is verplicht."
-    exit 1
+    $BucketName = Read-Host "Geef een naam voor de S3-bucket (Enter = $DefaultBucketName)"
+    if ([string]::IsNullOrWhiteSpace($BucketName)) {
+        $BucketName = $DefaultBucketName
+    }
 }
 
 Write-Output "S3-bucketnaam: $BucketName"
