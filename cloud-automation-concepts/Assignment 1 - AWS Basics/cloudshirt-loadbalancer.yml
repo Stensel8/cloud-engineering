@@ -1,26 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt Application Load Balancer Stack
-  - Load Balancer (LB) with HTTPS and HTTP-to-HTTPS redirect
-  - Target group voor EC2-instances
-  - Exporteert DNS-naam als output
+  CloudShirt Application Load Balancer-stack (REQ-01).
+  Verdeelt inkomend verkeer over de webserver-instances in twee AZ's
+  via één URL. Ondersteunt optionele HTTPS met een ACM-certificaat:
+  als een certificaat is opgegeven, worden HTTP-verzoeken automatisch
+  doorgestuurd naar HTTPS (301 redirect).
 
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
 Parameters:
+
   CertificateArn:
     Type: String
-    Description: ARN of the ACM certificate for HTTPS listener
+    Description: ARN van het ACM-certificaat voor de HTTPS-listener (leeg = alleen HTTP)
     Default: ""
+
   LogBucketName:
     Type: String
-    Description: Name of the S3 bucket for ALB access logs
+    Description: Naam van de S3-bucket voor ALB access logs (leeg = logging uitgeschakeld)
     Default: ""
 
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
 Conditions:
-  HasCertificate: !Not [!Equals [!Ref CertificateArn, ""]]
+  # Gebruik HTTPS als er een certificaat is opgegeven
+  HasCertificate:   !Not [!Equals [!Ref CertificateArn, ""]]
   HasNoCertificate: !Equals [!Ref CertificateArn, ""]
-  HasLogBucket: !Not [!Equals [!Ref LogBucketName, ""]]
+  HasLogBucket:     !Not [!Equals [!Ref LogBucketName, ""]]
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 Resources:
-  # EC2-instances
+
+  # ── Target Group — verwijst naar de EC2-webserver-instances ─────────────
   WebTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -33,7 +48,8 @@ Resources:
         - Id: !ImportValue cloudshirt-ec2:Instance1
         - Id: !ImportValue cloudshirt-ec2:Instance2
 
-  # Loadbalancer
+  # ── Application Load Balancer ────────────────────────────────────────────
+  # Publiek toegankelijk, verdeeld over twee publieke subnets (twee AZ's).
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
@@ -59,7 +75,7 @@ Resources:
             Value: !Ref LogBucketName
           - !Ref AWS::NoValue
 
-  # HTTP listener: redirect to HTTPS wanneer er een certificaat is
+  # ── HTTP-listener: redirect naar HTTPS (alleen met certificaat) ──────────
   HTTPListenerRedirect:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Condition: HasCertificate
@@ -74,7 +90,7 @@ Resources:
             Port: "443"
             StatusCode: HTTP_301
 
-  # HTTP listener: direct forward wanneer geen certificaat beschikbaar is
+  # ── HTTP-listener: direct doorsturen (geen certificaat opgegeven) ────────
   HTTPListenerForward:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Condition: HasNoCertificate
@@ -86,7 +102,7 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref WebTargetGroup
 
-  # HTTPS listener: forward to target group (alleen met certificaat)
+  # ── HTTPS-listener: doorsturen naar target group (alleen met certificaat) ─
   HTTPSListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Condition: HasCertificate
@@ -101,16 +117,19 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref WebTargetGroup
 
-# Output
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
 Outputs:
+
   LoadBalancerDNSName:
-    Description: Public URL for CloudShirt
+    Description: Publieke URL van CloudShirt (ALB DNS-naam)
     Value: !GetAtt ApplicationLoadBalancer.DNSName
     Export:
       Name: !Sub "${AWS::StackName}:LoadBalancerDNS"
 
   WebTargetGroup:
-    Description: ARN of the Target Group
+    Description: ARN van de Target Group
     Value: !Ref WebTargetGroup
     Export:
       Name: !Sub "${AWS::StackName}:WebTargetGroup"

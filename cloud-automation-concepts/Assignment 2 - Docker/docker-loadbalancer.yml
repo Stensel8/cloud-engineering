@@ -1,13 +1,10 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Application Load Balancer for CloudShirt ASG instances
+Description: Application Load Balancer for CloudShirt Docker instances
 
 Parameters:
-  CertificateArn:
-    Type: String
-    Description: ARN of the ACM certificate for HTTPS listeners
   LogBucketName:
     Type: String
-    Description: Name of the S3 bucket for ALB access logs
+    Description: Naam van de S3-bucket voor ALB access logs
 
 Resources:
   ## =========================
@@ -67,68 +64,46 @@ Resources:
       UnhealthyThresholdCount: 2
 
   ## =========================
-  ## HTTP listener: redirect to HTTPS
-  ## =========================
-  CloudShirtHTTPListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref CloudShirtALB
-      Port: 80
-      Protocol: HTTP
-      DefaultActions:
-        - Type: redirect
-          RedirectConfig:
-            Protocol: HTTPS
-            Port: "443"
-            StatusCode: HTTP_301
-
-  ## =========================
-  ## HTTPS Listener voor poort 5106
+  ## HTTP Listener voor poort 5106
   ## =========================
   CloudShirtListener5106:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref CloudShirtALB
       Port: 5106
-      Protocol: HTTPS
-      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
-      Certificates:
-        - CertificateArn: !Ref CertificateArn
+      Protocol: HTTP
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref CloudShirtTG5106
 
   ## =========================
-  ## HTTPS Listener voor poort 5098
+  ## HTTP Listener voor poort 5098
   ## =========================
   CloudShirtListener5098:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref CloudShirtALB
       Port: 5098
-      Protocol: HTTPS
-      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
-      Certificates:
-        - CertificateArn: !Ref CertificateArn
+      Protocol: HTTP
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref CloudShirtTG5098
 
 Outputs:
   LoadBalancerDNS:
-    Description: DNS name of the ALB
+    Description: DNS-naam van de ALB
     Value: !GetAtt CloudShirtALB.DNSName
     Export:
       Name: CloudShirtALB-DNS
 
   TargetGroup5106ARN:
-    Description: ARN of the Target Group for port 5106
+    Description: ARN van de Target Group voor poort 5106
     Value: !Ref CloudShirtTG5106
     Export:
       Name: CloudShirtTG5106-ARN
 
   TargetGroup5098ARN:
-    Description: ARN of the Target Group for port 5098
+    Description: ARN van de Target Group voor poort 5098
     Value: !Ref CloudShirtTG5098
     Export:
       Name: CloudShirtTG5098-ARN

@@ -1,54 +1,61 @@
+AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt Base Network Stack
-  - VPC (10.0.0.0/16)
-  - 2 public + 2 private subnets
-  - Internet Gateway, NAT Gateway, routing tables
-  - Proper tagging and exports
+  CloudShirt netwerk-stack.
+  Voorziet in: VPC (10.0.0.0/16), 2 publieke en 2 private subnets
+  verdeeld over twee Availability Zones, een Internet Gateway,
+  een NAT Gateway, routetabellen en security groups.
 
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
 Parameters:
+
   VPCCIDR:
-    Description: Please enter the IP range (CIDR notation) for this VPC.
+    Description: IP-bereik (CIDR) voor de VPC.
     Type: String
     Default: 10.0.0.0/16
 
   PublicSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for public subnet 1
+    Description: IP-bereik (CIDR) voor publiek subnet 1 (AZ1).
     Type: String
     Default: 10.0.1.0/24
 
   PublicSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for public subnet 2
+    Description: IP-bereik (CIDR) voor publiek subnet 2 (AZ2).
     Type: String
     Default: 10.0.2.0/24
 
   PrivateSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for private subnet 1
+    Description: IP-bereik (CIDR) voor privaat subnet 1 (AZ1).
     Type: String
     Default: 10.0.51.0/24
 
   PrivateSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for private subnet 2
+    Description: IP-bereik (CIDR) voor privaat subnet 2 (AZ2).
     Type: String
     Default: 10.0.52.0/24
 
   AvailabilityZone1:
-    Description: Please enter the name of the first Availability Zone.
+    Description: Naam van de eerste Availability Zone.
     Type: String
     Default: us-east-1a
 
   AvailabilityZone2:
-    Description: Please enter the name of the second Availability Zone.
+    Description: Naam van de tweede Availability Zone.
     Type: String
     Default: us-east-1b
-  
+
   SSHCidr:
-    Description: The IP range that can SSH to EC2 instances
+    Description: IP-bereik dat SSH-toegang heeft tot EC2-instances.
     Type: String
     Default: 10.0.0.0/16
-  
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 Resources:
-  # VPC
+
+  # ── VPC ──────────────────────────────────────────────────────────────────
   CloudShirtVpc:
     Type: AWS::EC2::VPC
     Properties:
@@ -64,7 +71,7 @@ Resources:
         - Key: Owner
           Value: TeamCloudShirt
 
-  # Internet Gateway
+  # ── Internet Gateway ─────────────────────────────────────────────────────
   CloudShirtInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
@@ -74,14 +81,14 @@ Resources:
         - Key: Project
           Value: CloudShirt
 
-  # Attach Internet Gateway
+  # Koppel de Internet Gateway aan de VPC
   CloudShirtVPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref CloudShirtInternetGateway
       VpcId: !Ref CloudShirtVpc
 
-  # Public Subnets
+  # ── Publieke subnets (REQ-01: high availability over twee AZ's) ──────────
   CloudShirtFirstSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -112,7 +119,7 @@ Resources:
         - Key: Project
           Value: CloudShirt
 
-  # Public Route Table
+  # ── Publieke routetabel ───────────────────────────────────────────────────
   CloudShirtRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -123,7 +130,7 @@ Resources:
         - Key: Project
           Value: CloudShirt
 
-  # Default route to Internet Gateway
+  # Standaardroute voor internet-verkeer via de Internet Gateway
   CloudShirtDefaultRoute:
     Type: AWS::EC2::Route
     DependsOn: CloudShirtVPCGatewayAttachment
@@ -132,7 +139,7 @@ Resources:
       GatewayId: !Ref CloudShirtInternetGateway
       RouteTableId: !Ref CloudShirtRouteTable
 
-  # Associate public subnets with public route table
+  # Koppel publieke subnets aan de publieke routetabel
   CloudShirtFirstSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -145,7 +152,7 @@ Resources:
       RouteTableId: !Ref CloudShirtRouteTable
       SubnetId: !Ref CloudShirtSecondSubnet
 
-  # Private Subnets
+  # ── Private subnets (voor RDS en interne services) ───────────────────────
   CloudShirtFirstPrivateSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -174,7 +181,7 @@ Resources:
         - Key: Project
           Value: CloudShirt
 
-  # NAT Gateway (in Public Subnet 1)
+  # ── NAT Gateway (in publiek subnet 1, voor uitgaand verkeer van private subnets) ──
   CloudShirtNatEIP:
     Type: AWS::EC2::EIP
     Properties:
@@ -196,7 +203,7 @@ Resources:
         - Key: Project
           Value: CloudShirt
 
-  # Private Route Table
+  # ── Private routetabel ────────────────────────────────────────────────────
   CloudShirtPrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -207,7 +214,7 @@ Resources:
         - Key: Project
           Value: CloudShirt
 
-  # Route private traffic to NAT Gateway
+  # Uitgaand verkeer van private subnets via de NAT Gateway
   CloudShirtPrivateDefaultRoute:
     Type: AWS::EC2::Route
     Properties:
@@ -215,7 +222,7 @@ Resources:
       NatGatewayId: !Ref CloudShirtNatGateway
       RouteTableId: !Ref CloudShirtPrivateRouteTable
 
-  # Associate private subnets with private route table
+  # Koppel private subnets aan de private routetabel
   CloudShirtPrivateSubnet1Association:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -227,37 +234,40 @@ Resources:
     Properties:
       RouteTableId: !Ref CloudShirtPrivateRouteTable
       SubnetId: !Ref CloudShirtSecondPrivateSubnet
-      
+
+  # ── Security Groups ───────────────────────────────────────────────────────
+
+  # EC2-instances: SSH (intern), HTTP en HTTPS (publiek)
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Metadata:
       checkov:
         skip:
           - id: CKV_AWS_24
-            comment: "Port 80 must be open for public ALB/web server traffic"
+            comment: "Poort 80 moet open zijn voor publieke ALB/webserver-traffic"
     Properties:
-      GroupDescription: Allow SSH, HTTP and HTTPS traffic
+      GroupDescription: Sta SSH, HTTP en HTTPS toe
       VpcId: !Ref CloudShirtVpc
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref SSHCidr
-          Description: Allow SSH access
+          Description: SSH-toegang vanuit het interne netwerk
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
-          Description: Allow HTTP traffic
+          Description: HTTP-verkeer van het internet
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-          Description: Allow HTTPS traffic
+          Description: HTTPS-verkeer van het internet
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-          Description: Allow all outbound traffic
+          Description: Alle uitgaande verbindingen toestaan
       Tags:
         - Key: Name
           Value: CloudShirt-EC2-SG
@@ -265,18 +275,19 @@ Resources:
           Value: CloudShirt
         - Key: Environment
           Value: dev
-  
+
+  # RDS: SQL Server-poort alleen bereikbaar vanuit de VPC (REQ-04)
   RdsSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow SQL Server traffic from VPC
+      GroupDescription: Sta SQL Server-verkeer toe vanuit de VPC
       VpcId: !Ref CloudShirtVpc
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 1433
           ToPort: 1433
           CidrIp: 10.0.0.0/16
-          Description: Allow SQL Server from VPC
+          Description: SQL Server-toegang vanuit de VPC
       Tags:
         - Key: Name
           Value: CloudShirt-RDS-SG
@@ -285,58 +296,61 @@ Resources:
         - Key: Environment
           Value: dev
 
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door andere stacks
+# ---------------------------------------------------------------------------
 Outputs:
+
   VPCRef:
-    Description: Reference to the VPC
+    Description: VPC ID
     Value: !Ref CloudShirtVpc
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", VPC ] ]
+      Name: !Sub "${AWS::StackName}:VPC"
 
   CloudShirtFirstSubnetRef:
-    Description: Reference to public subnet 1
+    Description: Publiek subnet 1 (AZ1)
     Value: !Ref CloudShirtFirstSubnet
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", CloudShirtFirstSubnet ] ]
+      Name: !Sub "${AWS::StackName}:CloudShirtFirstSubnet"
 
   CloudShirtSecondSubnetRef:
-    Description: Reference to public subnet 2
+    Description: Publiek subnet 2 (AZ2)
     Value: !Ref CloudShirtSecondSubnet
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", CloudShirtSecondSubnet ] ]
+      Name: !Sub "${AWS::StackName}:CloudShirtSecondSubnet"
 
   CloudShirtFirstPrivateSubnetRef:
-    Description: Reference to private subnet 1
+    Description: Privaat subnet 1 (AZ1)
     Value: !Ref CloudShirtFirstPrivateSubnet
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", CloudShirtFirstPrivateSubnet ] ]
+      Name: !Sub "${AWS::StackName}:CloudShirtFirstPrivateSubnet"
 
   CloudShirtSecondPrivateSubnetRef:
-    Description: Reference to private subnet 2
+    Description: Privaat subnet 2 (AZ2)
     Value: !Ref CloudShirtSecondPrivateSubnet
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", CloudShirtSecondPrivateSubnet ] ]
+      Name: !Sub "${AWS::StackName}:CloudShirtSecondPrivateSubnet"
 
   AvailabilityZone1Ref:
-    Description: First Availability Zone
+    Description: Eerste Availability Zone
     Value: !Ref AvailabilityZone1
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", AvailabilityZone1 ] ]
+      Name: !Sub "${AWS::StackName}:AvailabilityZone1"
 
   AvailabilityZone2Ref:
-    Description: Second Availability Zone
+    Description: Tweede Availability Zone
     Value: !Ref AvailabilityZone2
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", AvailabilityZone2 ] ]
-      
+      Name: !Sub "${AWS::StackName}:AvailabilityZone2"
+
   InstanceSecurityGroupRef:
-    Description: EC2 instance SG
+    Description: Security group voor EC2-instances
     Value: !Ref InstanceSecurityGroup
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", InstanceSG ] ]
+      Name: !Sub "${AWS::StackName}:InstanceSG"
 
   RdsSecurityGroupRef:
-    Description: RDS instance SG
+    Description: Security group voor RDS
     Value: !Ref RdsSecurityGroup
     Export:
-      Name: !Join [ ":", [ !Ref "AWS::StackName", rdsSG ] ]
-      
+      Name: !Sub "${AWS::StackName}:rdsSG"
