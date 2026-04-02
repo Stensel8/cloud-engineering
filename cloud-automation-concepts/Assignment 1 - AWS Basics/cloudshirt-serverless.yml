@@ -15,6 +15,11 @@ Parameters:
     Type: String
     Description: Naam van de S3-bucket voor RDS-exports (zelfde als cloudshirt-s3)
 
+  LambdaReservedConcurrency:
+    Type: Number
+    Default: 5
+    Description: Maximaal aantal gelijktijdige Lambda-uitvoeringen
+
 # ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
@@ -27,6 +32,16 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: cloudshirt-export-notifications
+      KmsMasterKeyId: alias/aws/sns
+
+  # -------------------------------------------------------------------------
+  # DLQ — ontvangt mislukte asynchrone Lambda-events
+  # -------------------------------------------------------------------------
+  ExportMonitorDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: cloudshirt-export-monitor-dlq
+      KmsMasterKeyId: alias/aws/sqs
 
   # -------------------------------------------------------------------------
   # IAM Role — minimale rechten voor de Lambda-functie
@@ -44,6 +59,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
         - PolicyName: ExportMonitorPolicy
           PolicyDocument:
@@ -52,7 +68,6 @@ Resources:
               - Sid: S3ReadExport
                 Effect: Allow
                 Action:
-                  - s3:HeadObject
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
@@ -62,6 +77,18 @@ Resources:
                 Effect: Allow
                 Action: sns:Publish
                 Resource: !Ref ExportNotificationTopic
+
+  # -------------------------------------------------------------------------
+  # Lambda SG — alleen egress, geen inkomende poorten nodig
+  # -------------------------------------------------------------------------
+  ExportMonitorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group voor CloudShirt export monitor Lambda
+      VpcId: !ImportValue cloudshirt-network:VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
 
   # -------------------------------------------------------------------------
   # Lambda Function — controleert of orders.csv vandaag bijgewerkt is
@@ -82,6 +109,16 @@ Resources:
       Handler: index.handler
       Role: !GetAtt ExportMonitorRole.Arn
       Timeout: 30
+      KmsKeyArn: alias/aws/lambda
+      ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
+      DeadLetterConfig:
+        TargetArn: !GetAtt ExportMonitorDLQ.Arn
+      VpcConfig:
+        SubnetIds:
+          - !ImportValue cloudshirt-network:CloudShirtFirstPrivateSubnet
+          - !ImportValue cloudshirt-network:CloudShirtSecondPrivateSubnet
+        SecurityGroupIds:
+          - !Ref ExportMonitorSecurityGroup
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
@@ -192,3 +229,9 @@ Outputs:
     Value: !Ref ExportNotificationTopic
     Export:
       Name: !Sub "${AWS::StackName}:SNSTopic"
+
+  DeadLetterQueueArn:
+    Description: ARN van de DLQ voor mislukte Lambda-events
+    Value: !GetAtt ExportMonitorDLQ.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}:DLQArn"

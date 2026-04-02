@@ -177,7 +177,10 @@ function Invoke-StackDeployment {
         [switch]$IncludeCredentials,
 
         # Voeg de S3-bucketnaam toe als stack-parameter
-        [switch]$IncludeBucket
+        [switch]$IncludeBucket,
+
+        # Voeg de ALB logbucket-parameter toe (alleen voor loadbalancer-stack)
+        [switch]$IncludeLogBucket
     )
 
     Write-Output ""
@@ -209,6 +212,9 @@ function Invoke-StackDeployment {
 
     if ($IncludeBucket) {
         $Params += "ParameterKey=BucketName,ParameterValue=$BucketName"
+    }
+
+    if ($IncludeLogBucket) {
         $Params += "ParameterKey=LogBucketName,ParameterValue=$BucketName"
     }
 
@@ -310,7 +316,7 @@ Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3
 # 5. Load Balancer (afhankelijk van de EC2-instances als target)
 Write-Output "Stap 5/7 - Load Balancer"
 Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml" `
-    -IncludeBucket
+    -IncludeLogBucket
 
 # 6. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
 Write-Output "Stap 6/7 - Auto Scaling Group"
