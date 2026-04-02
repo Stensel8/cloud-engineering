@@ -107,7 +107,7 @@ Resources:
           cd "/home/ec2-user"
           echo "Current directory: $(pwd)"
 
-          git clone https://github.com/537845Ahmed/CloudShirt-1.git
+          git clone https://github.com/Stensel8/CloudShirt-1.git
 
           cd "/home/ec2-user/CloudShirt-1"
           echo "Current directory: $(pwd)"
