@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  Deploy Amazon RDS SQL Server instance and two Amazon Linux 2 EC2 instances with .NET 6, 
-  nginx reverse proxy, and CloudShirt web app configured to use the RDS database.
+  Deploy CloudShirt Amazon RDS SQL Server instance, subnet group, and secret.
 
 Parameters:
   DBAllocatedStorage:
@@ -10,6 +9,7 @@ Parameters:
     Description: The size of the database (Gb)
 
 Resources:
+
   RDSMonitoringRole:
     Type: AWS::IAM::Role
     Properties:
@@ -22,17 +22,6 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
-
-  CloudShirtDBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: CloudShirt RDS subnet group
-      SubnetIds:
-        - !ImportValue cloudshirt-network:CloudShirtFirstPrivateSubnet
-        - !ImportValue cloudshirt-network:CloudShirtSecondPrivateSubnet
-      Tags:
-        - Key: Name
-          Value: CloudShirt-DBSubnetGroup
 
   CloudShirtDBSecretKMSKey:
     Type: AWS::KMS::Key
@@ -47,6 +36,17 @@ Resources:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action: "kms:*"
             Resource: "*"
+
+  CloudShirtDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: CloudShirt RDS subnet group
+      SubnetIds:
+        - !ImportValue cloudshirt-network:CloudShirtFirstPrivateSubnet
+        - !ImportValue cloudshirt-network:CloudShirtSecondPrivateSubnet
+      Tags:
+        - Key: Name
+          Value: CloudShirt-DBSubnetGroup
 
   CloudShirtDBSecret:
     Type: AWS::SecretsManager::Secret

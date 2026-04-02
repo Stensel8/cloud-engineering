@@ -16,7 +16,32 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 ## Inleverpunten
 
 > [!NOTE]
-> De weekopdrachten (Week 1-4) zijn vervallen als inleverpunt. Ze staan nog in de repo als referentie en oefenmateriaal, maar het portfolio bestaat uit de drie onderstaande assignments.
+> De weekopdrachten (Week 1-7) zijn vervallen als verplicht inleverpunt. Ze staan nog in de repo als referentie en oefenmateriaal, maar het portfolio bestaat momenteel uit de drie onderstaande assignments.
+
+> [!IMPORTANT]
+> Deze module is direct afhankelijk van de Stensel8/CloudShirt repository. De implementatie en bewijsvoering worden bijgehouden in code, configuratie en documentatie in die repository:
+> https://github.com/stensel8/CloudShirt
+
+### Cross-referentie met CloudShirt
+
+CloudShirt is de applicatiebasis voor deze module:
+
+- Oorsprong: geforkte/basisvariant welke oorspronkelijk is ontwikkeld door een docent.
+- Doorontwikkeling: omgebouwd en gemoderniseerd door mij (Stensel8). De applicatie is hierdoor inzetbaar voor zowel monolithische als gecontaineriseerde deployments, en voldoet hierdoor aan de eisen.
+- Toepassing: gebruikt in de drie assignments binnen Cloud Automation Concepts om requirements aantoonbaar af te vinken.
+
+Samenhang tussen de repositories:
+
+- [CloudShirt](https://github.com/stensel8/CloudShirt): applicatie en deployment-uitwerking.
+- [cloud-automation-concepts](https://github.com/stensel8/cloud-engineering/tree/main/cloud-automation-concepts): opdrachtkaders en requirementstructuur.
+
+CloudShirt staat nu als git submodule in [CloudShirt/](CloudShirt/), en volgt de `main` branch zodat de koppeling expliciet en versievast blijft.
+
+Bijwerken kan later met `git submodule update --remote --merge`, zodat de submodule naar de nieuwste `main`-commit opschuift.
+
+Je zou dit kunnen zien als een platform en een applicatie, welke beide in hun eigen repository staan, maar elkaar onderling nodig hebben voor de uitvoering van de opdrachten. Dat is het idee van microservices.
+
+
 
 ### Assignment 1: AWS Basics
 

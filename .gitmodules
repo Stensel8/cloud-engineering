@@ -1,0 +1,4 @@
+[submodule "cloud-automation-concepts/CloudShirt"]
+	path = cloud-automation-concepts/CloudShirt
+	url = https://github.com/Stensel8/CloudShirt.git
+	branch = main

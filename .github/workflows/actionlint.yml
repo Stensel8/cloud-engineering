@@ -1,0 +1,30 @@
+# Actionlint - Valideert GitHub Actions workflows op syntax en veelvoorkomende fouten.
+name: Actionlint
+
+on:
+  push:
+    paths:
+      - ".github/workflows/**/*.yml"
+      - ".github/workflows/**/*.yaml"
+  pull_request:
+    paths:
+      - ".github/workflows/**/*.yml"
+      - ".github/workflows/**/*.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actionlint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint GitHub Actions workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run actionlint
+        uses: reviewdog/action-actionlint@v1
