@@ -314,8 +314,7 @@ Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3
 
 # 5. Load Balancer (afhankelijk van de EC2-instances als target)
 Write-Output "Stap 5/7 - Load Balancer"
-Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml" `
-    -IncludeLogBucket
+Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml"
 
 # 6. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
 Write-Output "Stap 6/7 - Auto Scaling Group"
