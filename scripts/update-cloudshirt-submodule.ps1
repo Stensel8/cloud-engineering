@@ -9,15 +9,6 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Invoke-Git {
-    param([Parameter(Mandatory)][string]$Args)
-    $output = & git -C $RepositoryRoot @($Args.Split(" ")) 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Git-commando mislukt: git -C $RepositoryRoot $Args`n$output"
-    }
-    return $output
-}
-
 if (-not (Test-Path (Join-Path $RepositoryRoot ".gitmodules"))) {
     throw "Geen .gitmodules gevonden in $RepositoryRoot"
 }
@@ -26,15 +17,16 @@ Push-Location $RepositoryRoot
 try {
     Write-Output "Submodule '$SubmodulePath' wordt bijgewerkt naar de laatste '$SubmoduleBranch'..."
 
-    $oldCommit = ""
-    $oldCommit = (& git -C $RepositoryRoot rev-parse "HEAD:$SubmodulePath" 2>$null).Trim()
+    $oldCommitRaw = & git -C $RepositoryRoot rev-parse "HEAD:$SubmodulePath" 2>$null
+    $oldCommit = ([string]$oldCommitRaw).Trim()
 
     & git -C $RepositoryRoot submodule update --init --remote -- $SubmodulePath
     if ($LASTEXITCODE -ne 0) {
         throw "Bijwerken van submodule '$SubmodulePath' is mislukt."
     }
 
-    $newCommit = (& git -C (Join-Path $RepositoryRoot $SubmodulePath) rev-parse HEAD 2>$null).Trim()
+    $newCommitRaw = & git -C (Join-Path $RepositoryRoot $SubmodulePath) rev-parse HEAD 2>$null
+    $newCommit = ([string]$newCommitRaw).Trim()
     if ([string]::IsNullOrWhiteSpace($newCommit)) {
         throw "Nieuwe submodule-commit voor '$SubmodulePath' kon niet worden bepaald."
     }

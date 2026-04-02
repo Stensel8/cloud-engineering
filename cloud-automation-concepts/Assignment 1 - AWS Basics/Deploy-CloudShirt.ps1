@@ -324,7 +324,7 @@ Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-a
     -IncludeCredentials -IncludeBucket
 
 # 7. Serverless Lambda export-monitor (REQ-08)
-#    Afhankelijk van cloudshirt-s3 (bucket moet bestaan vóór de Lambda wordt aangemaakt)
+#    Afhankelijk van cloudshirt-s3 (bucket moet bestaan voor de Lambda wordt aangemaakt)
 Write-Output "Stap 7/7 - Serverless export-monitor (REQ-08)"
 Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
     -IncludeBucket

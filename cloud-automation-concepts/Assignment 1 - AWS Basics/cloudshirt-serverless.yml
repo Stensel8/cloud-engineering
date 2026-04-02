@@ -31,7 +31,6 @@ Resources:
   ExportNotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
-      TopicName: cloudshirt-export-notifications
       KmsMasterKeyId: alias/aws/sns
 
   # -------------------------------------------------------------------------
@@ -40,7 +39,6 @@ Resources:
   ExportMonitorDLQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: cloudshirt-export-monitor-dlq
       KmsMasterKeyId: alias/aws/sqs
 
   # -------------------------------------------------------------------------
@@ -49,7 +47,6 @@ Resources:
   ExportMonitorRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: cloudshirt-export-monitor-role
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -89,6 +86,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
+          Description: Allow outbound traffic for Lambda to reach AWS services
 
   # -------------------------------------------------------------------------
   # Lambda Function — controleert of orders.csv vandaag bijgewerkt is
@@ -101,7 +99,6 @@ Resources:
   ExportMonitorFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: cloudshirt-export-monitor
       Description: >
         Controleert dagelijks of de CloudShirt order-export naar S3 is geslaagd
         en stuurt een SNS-melding met de status.
@@ -187,7 +184,6 @@ Resources:
   ExportMonitorSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Name: cloudshirt-export-check
       Description: >
         Triggert de Lambda dagelijks om 03:00 UTC om de export-status te controleren.
       ScheduleExpression: cron(0 3 * * ? *)

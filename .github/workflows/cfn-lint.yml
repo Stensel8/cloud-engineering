@@ -34,8 +34,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
       - name: Installeer cfn-lint
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          cfn-lint --version
 
       - name: Registreer problem matcher
         run: echo "::add-matcher::.github/cfn-lint-matcher.json"

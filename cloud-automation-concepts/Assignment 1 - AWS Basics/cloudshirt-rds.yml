@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  Deploy Amazon RDS SQL Server instance and two Amazon Linux 2 EC2 instances with .NET 6,
-  nginx reverse proxy, and CloudShirt web app configured to use the RDS database.
+  Deploy CloudShirt Amazon RDS SQL Server instance, subnet group, and secret.
 
 Parameters:
   DBAllocatedStorage:
