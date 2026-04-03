@@ -1,0 +1,322 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudShirt Docker Swarm - Netwerk-stack.
+  VPC, publieke en private subnets, Internet Gateway, NAT Gateway,
+  routetabellen en security groups.
+
+# ---------------------------------------------------------------------------
+# Mappings — CIDR-blokken voor VPC en subnets
+# ---------------------------------------------------------------------------
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: "10.0.0.0/16"
+    PublicSubnetA:
+      CIDR: "10.0.1.0/24"
+    PublicSubnetB:
+      CIDR: "10.0.2.0/24"
+    PrivateSubnetA:
+      CIDR: "10.0.10.0/24"
+    PrivateSubnetB:
+      CIDR: "10.0.11.0/24"
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # ── VPC ─────────────────────────────────────────────────────────────────
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [SubnetConfig, VPC, CIDR]
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: CloudShirt-VPC
+
+  # ── Internet Gateway ─────────────────────────────────────────────────────
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CloudShirt-IGW
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # ── Publieke subnets ─────────────────────────────────────────────────────
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap [SubnetConfig, PublicSubnetA, CIDR]
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Public-A
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap [SubnetConfig, PublicSubnetB, CIDR]
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Public-B
+
+  # ── Private subnets ──────────────────────────────────────────────────────
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap [SubnetConfig, PrivateSubnetA, CIDR]
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Private-A
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap [SubnetConfig, PrivateSubnetB, CIDR]
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Private-B
+
+  # ── NAT Gateway ──────────────────────────────────────────────────────────
+  NatEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: CloudShirt-NAT
+
+  # ── Publieke routetabel ───────────────────────────────────────────────────
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Public-RT
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # ── Private routetabel ────────────────────────────────────────────────────
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Private-RT
+
+  # Uitgaand verkeer van private subnets via de NAT Gateway
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+  # ── Security Groups ───────────────────────────────────────────────────────
+
+  # ALB: HTTP/HTTPS van het internet
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB - sta HTTP en HTTPS toe vanuit het internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP van het internet
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS van het internet
+      Tags:
+        - Key: Name
+          Value: CloudShirt-ALB-SG
+
+  # Worker nodes: verkeer van ALB en Docker Swarm gossip/overlay
+  WorkerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ASG worker nodes - Docker Swarm en ALB-verkeer
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          Description: HTTP van de ALB
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+          Description: App-poort van de ALB
+        - IpProtocol: tcp
+          FromPort: 2377
+          ToPort: 2377
+          CidrIp: 10.0.0.0/16
+          Description: Docker Swarm management
+        - IpProtocol: tcp
+          FromPort: 7946
+          ToPort: 7946
+          CidrIp: 10.0.0.0/16
+          Description: Docker Swarm node discovery (TCP)
+        - IpProtocol: udp
+          FromPort: 7946
+          ToPort: 7946
+          CidrIp: 10.0.0.0/16
+          Description: Docker Swarm node discovery (UDP)
+        - IpProtocol: udp
+          FromPort: 4789
+          ToPort: 4789
+          CidrIp: 10.0.0.0/16
+          Description: Docker overlay netwerk (VXLAN)
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Worker-SG
+
+  # Buildserver (Swarm Manager) in het private subnet
+  BuildserverSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Buildserver (Swarm Manager) - SSH en Docker Swarm
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2377
+          ToPort: 2377
+          CidrIp: 10.0.0.0/16
+          Description: Docker Swarm management
+        - IpProtocol: tcp
+          FromPort: 7946
+          ToPort: 7946
+          CidrIp: 10.0.0.0/16
+          Description: Docker Swarm node discovery (TCP)
+        - IpProtocol: udp
+          FromPort: 7946
+          ToPort: 7946
+          CidrIp: 10.0.0.0/16
+          Description: Docker Swarm node discovery (UDP)
+        - IpProtocol: udp
+          FromPort: 4789
+          ToPort: 4789
+          CidrIp: 10.0.0.0/16
+          Description: Docker overlay netwerk (VXLAN)
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.0.0.0/16
+          Description: SSH vanuit de VPC
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Buildserver-SG
+
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door andere stacks
+# ---------------------------------------------------------------------------
+Outputs:
+
+  VPCID:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub "${AWS::StackName}:VPCID"
+
+  PublicSubnetA:
+    Description: Publiek subnet A (AZ1)
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}:PublicSubnetA"
+
+  PublicSubnetB:
+    Description: Publiek subnet B (AZ2)
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}:PublicSubnetB"
+
+  PrivateSubnetA:
+    Description: Privaat subnet A (AZ1)
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub "${AWS::StackName}:PrivateSubnetA"
+
+  PrivateSubnetB:
+    Description: Privaat subnet B (AZ2)
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}:PrivateSubnetB"
+
+  ALBSecurityGroup:
+    Description: Security group voor de ALB
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}:ALBSecurityGroup"
+
+  WorkerSecurityGroup:
+    Description: Security group voor worker nodes
+    Value: !Ref WorkerSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}:WorkerSecurityGroup"
+
+  BuildserverSecurityGroup:
+    Description: Security group voor de Buildserver
+    Value: !Ref BuildserverSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}:BuildserverSecurityGroup"

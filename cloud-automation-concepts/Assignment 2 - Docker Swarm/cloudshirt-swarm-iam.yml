@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudShirt Docker Swarm - IAM-stack.
+  EC2 instance role en instance profile met toegang tot ECR en SSM.
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  # Rol voor alle EC2-instances (buildserver en worker nodes)
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CloudShirt-EC2-Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        # SSM Session Manager (geen directe SSH nodig)
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        # CloudWatch Agent voor monitoring
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        # ECR: images pullen en pushen (buildserver doet de push)
+        - PolicyName: ECRAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                Resource: "*"
+        # SSM Parameter Store: swarm join-token en manager-IP
+        - PolicyName: SSMSwarmTokenAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:PutParameter
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cloudshirt/*"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: CloudShirt-EC2-Profile
+      Roles:
+        - !Ref EC2InstanceRole
+
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door andere stacks
+# ---------------------------------------------------------------------------
+Outputs:
+
+  InstanceProfileName:
+    Description: Naam van het EC2 instance profile
+    Value: !Ref EC2InstanceProfile
+    Export:
+      Name: !Sub "${AWS::StackName}:InstanceProfileName"
