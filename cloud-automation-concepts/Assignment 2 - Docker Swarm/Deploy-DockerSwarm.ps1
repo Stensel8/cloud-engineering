@@ -129,14 +129,14 @@ Write-Output "Credentials zijn geldig."
 Write-Section "Invoer verzamelen"
 
 if ([string]::IsNullOrWhiteSpace($KeyName)) {
-    $KeyName = Read-Host "Geef de naam van je EC2 Key Pair"
-    if ([string]::IsNullOrWhiteSpace($KeyName)) {
-        Write-Output "FOUT: geen Key Pair naam opgegeven."
-        exit 1
-    }
+    $KeyName = Read-Host "Geef de naam van je EC2 Key Pair (Enter = geen, verbinden via SSM)"
 }
 
-Write-Output "Key Pair: $KeyName"
+if ([string]::IsNullOrWhiteSpace($KeyName)) {
+    Write-Output "Geen Key Pair opgegeven - verbinding via SSM Session Manager."
+} else {
+    Write-Output "Key Pair: $KeyName"
+}
 
 # ---------------------------------------------------------------------------
 # Hulpfunctie: deploy een CloudFormation-stack
@@ -262,32 +262,27 @@ Write-Section "Deployment starten"
 
 # 1. Netwerk-basisinfrastructuur
 #    Alle andere stacks zijn hiervan afhankelijk.
-Write-Output "Stap 1/6 - Netwerk"
+Write-Output "Stap 1/5 - Netwerk"
 Invoke-StackDeployment -StackName "cloudshirt-swarm-network" -TemplateFile ".\cloudshirt-swarm-network.yml"
 
 # 2. ECR-repository voor Docker-images
-Write-Output "Stap 2/6 - ECR"
+Write-Output "Stap 2/5 - ECR"
 Invoke-StackDeployment -StackName "cloudshirt-swarm-ecr" -TemplateFile ".\cloudshirt-swarm-ecr.yml"
 
-# 3. IAM rol en instance profile
-#    Buildserver en ASG workers gebruiken dit profile.
-Write-Output "Stap 3/6 - IAM"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-iam" -TemplateFile ".\cloudshirt-swarm-iam.yml"
-
-# 4. Buildserver (Swarm Manager)
+# 3. Buildserver (Swarm Manager)
+#    Gebruikt de vooraf aangemaakte LabInstanceProfile van AWS Academy.
 #    Initialiseert de Swarm en slaat join-token op in SSM.
-#    Workers kunnen pas joinen als de Buildserver actief is.
-Write-Output "Stap 4/6 - Buildserver (Swarm Manager)"
+Write-Output "Stap 3/5 - Buildserver (Swarm Manager)"
 Invoke-StackDeployment -StackName "cloudshirt-swarm-buildserver" -TemplateFile ".\cloudshirt-swarm-buildserver.yml" `
     -Params @("ParameterKey=KeyName,ParameterValue=$KeyName")
 
-# 5. Application Load Balancer
-Write-Output "Stap 5/6 - Application Load Balancer"
+# 4. Application Load Balancer
+Write-Output "Stap 4/5 - Application Load Balancer"
 Invoke-StackDeployment -StackName "cloudshirt-swarm-alb" -TemplateFile ".\cloudshirt-swarm-alb.yml"
 
-# 6. Auto Scaling Group (Swarm Workers)
+# 5. Auto Scaling Group (Swarm Workers)
 #    Afhankelijk van ALB target group en SSM-parameters van de Buildserver.
-Write-Output "Stap 6/6 - Auto Scaling Group (Swarm Workers)"
+Write-Output "Stap 5/5 - Auto Scaling Group (Swarm Workers)"
 Invoke-StackDeployment -StackName "cloudshirt-swarm-asg" -TemplateFile ".\cloudshirt-swarm-asg.yml" `
     -Params @("ParameterKey=KeyName,ParameterValue=$KeyName")
 
