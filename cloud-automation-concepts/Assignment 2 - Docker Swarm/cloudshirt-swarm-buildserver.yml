@@ -197,6 +197,13 @@ Resources:
               attachable: true
           DCEOF
 
+          # Eerste build direct uitvoeren zodat er geen handmatige stap nodig is
+          /usr/local/bin/nightly-build.sh
+
+          # Swarm stack starten met de zojuist gebouwde image
+          cd /opt/cloudshirt
+          docker stack deploy -c docker-compose.yml cloudshirt
+
           echo "[UserData] Buildserver setup voltooid."
 
 # ---------------------------------------------------------------------------
