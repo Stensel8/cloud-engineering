@@ -309,10 +309,25 @@ if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
     Write-Output "  aws cloudformation describe-stacks --stack-name cloudshirt-swarm-alb --query 'Stacks[0].Outputs'"
 }
 
+# Eerste ALB target health tonen voor snellere troubleshooting
+$TargetGroupArn = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-swarm-alb" `
+    --query "Stacks[0].Outputs[?OutputKey=='TargetGroupArn'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
+    Write-Output ""
+    Write-Output "ALB target health (eerste controle):"
+    aws elbv2 describe-target-health `
+        --target-group-arn $TargetGroupArn `
+        --query "TargetHealthDescriptions[].{Instance:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason,Description:TargetHealth.Description}" `
+        --output table
+}
+
 Write-Output ""
 Write-Output "Volgende stappen:"
-Write-Output "  1. Wacht tot de worker nodes de Swarm hebben gejoined (~2-3 min)."
+Write-Output "  1. Wacht 2-5 minuten tot workers Ready zijn en ALB health checks groen worden."
 Write-Output "  2. Verbind via SSM Session Manager met de Buildserver en voer uit:"
 Write-Output "       docker node ls"
-Write-Output "  3. Start de Docker Swarm service handmatig of wacht op de nightly build (02:00 UTC):"
-Write-Output "       cd /opt/cloudshirt-hugo && docker stack deploy -c docker-compose.yml cloudshirt"
+Write-Output "  3. Controleer of de service draait:"
+Write-Output "       docker service ls && docker service ps cloudshirt_web"

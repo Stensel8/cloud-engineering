@@ -205,10 +205,45 @@ Resources:
               attachable: true
           DCEOF
 
-          # Eerste build direct uitvoeren (fouten worden gelogd maar stoppen de setup niet)
-          /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1 \
-            && docker stack deploy -c /opt/cloudshirt-hugo/docker-compose.yml cloudshirt \
-            || echo "[UserData] Eerste build mislukt - controleer /var/log/nightly-build.log"
+          # Eerste build direct uitvoeren (fouten loggen, setup gaat door)
+          if /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1; then
+            echo "[UserData] Eerste build geslaagd."
+          else
+            echo "[UserData] Eerste build mislukt - controleer /var/log/nightly-build.log"
+          fi
+
+          # Wacht tot minimaal 1 worker 'Ready' is om race conditions met de ALB te voorkomen
+          echo "[UserData] Wachten op worker nodes in Ready status..."
+          MAX_WAIT_SECONDS=600
+          WAIT_INTERVAL=15
+          ELAPSED=0
+          READY_WORKERS=0
+
+          while [ "$ELAPSED" -lt "$MAX_WAIT_SECONDS" ]; do
+            READY_WORKERS=$(docker node ls --filter role=worker --format '{{.Status}}' | grep -c '^Ready$' || true)
+
+            if [ "$READY_WORKERS" -ge 1 ]; then
+              echo "[UserData] Worker(s) gereed: $READY_WORKERS"
+              break
+            fi
+
+            sleep "$WAIT_INTERVAL"
+            ELAPSED=$((ELAPSED + WAIT_INTERVAL))
+          done
+
+          if [ "$READY_WORKERS" -lt 1 ]; then
+            echo "[UserData] WAARSCHUWING: geen worker Ready binnen timeout; stack deploy gaat toch door."
+          fi
+
+          # Swarm stack starten met de zojuist gebouwde image
+          cd /opt/cloudshirt-hugo
+          if ! docker stack deploy -c docker-compose.yml cloudshirt; then
+            echo "[UserData] WAARSCHUWING: docker stack deploy mislukt. Controleer docker service logs."
+          fi
+
+          # Korte statusdump voor troubleshooting
+          docker node ls || true
+          docker service ls || true
 
           echo "[UserData] Buildserver setup voltooid."
 
