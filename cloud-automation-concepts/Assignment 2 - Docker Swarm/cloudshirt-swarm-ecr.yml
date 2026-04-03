@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudShirt Docker Swarm - ECR-stack.
+  Elastic Container Registry voor Docker-images.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+
+  ECRRepoName:
+    Type: String
+    Default: cloudshirt
+    Description: Naam van de ECR-repository
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref ECRRepoName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      # Bewaar maximaal 10 images om kosten te beperken
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Name
+          Value: CloudShirt-ECR
+
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door andere stacks
+# ---------------------------------------------------------------------------
+Outputs:
+
+  ECRRepoName:
+    Description: Naam van de ECR-repository
+    Value: !Ref ECRRepoName
+    Export:
+      Name: !Sub "${AWS::StackName}:ECRRepoName"
+
+  ECRRepositoryURI:
+    Description: Volledige URI van de ECR-repository
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}"
+    Export:
+      Name: !Sub "${AWS::StackName}:ECRRepositoryURI"
