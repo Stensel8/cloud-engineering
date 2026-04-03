@@ -33,7 +33,7 @@ Resources:
   WebInstance1:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-0254b2d5c4c472488
+      ImageId: ami-0190ba1cb5ab4e9e8
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
       SubnetId: !ImportValue base-stack:CloudShirtFirstSubnet
