@@ -20,9 +20,9 @@ Parameters:
     Description: EC2 instance type voor de Buildserver
 
   AmiId:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: Meest recente Amazon Linux 2 AMI
+    Type: AWS::EC2::Image::Id
+    Default: ami-0190ba1cb5ab4e9e8
+    Description: Amazon Linux 2023 AMI (64-bit x86)
 
   ECRRepoName:
     Type: String
