@@ -66,11 +66,13 @@ Resources:
 
           # Pakketten installeren
           yum update -y
-          yum install -y docker git aws-cli jq
+          yum install -y docker git aws-cli jq cronie
 
           # Docker starten en inschakelen
           systemctl enable docker
           systemctl start docker
+          systemctl enable crond
+          systemctl start crond
           usermod -aG docker ec2-user
 
           # Docker Compose v2 installeren
@@ -113,6 +115,7 @@ Resources:
           chmod +x /usr/local/bin/ecr-login.sh
 
           # Nightly build script: clone/pull -> build -> push naar ECR -> rolling update Swarm
+          # Dockerfile en docker-compose.yml komen rechtstreeks uit CloudShirt-Hugo.
           cat <<'EOF' > /usr/local/bin/nightly-build.sh
           #!/bin/bash
           set -e
@@ -121,7 +124,9 @@ Resources:
           REPO="${ECRRepoName}"
           ECR_URI="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$REPO"
           DATE_TAG=$(date +%Y%m%d)
-          APP_DIR="/opt/cloudshirt-src"
+          APP_DIR="/opt/cloudshirt-hugo"
+          SWARM_COMPOSE_FILE="$APP_DIR/docker-compose.swarm.yml"
+          SERVICE_NAME="cloudshirt_web"
 
           echo "[$(date)] Nightly build gestart..."
 
@@ -135,6 +140,16 @@ Resources:
           else
             git clone https://github.com/Stensel8/CloudShirt-Hugo "$APP_DIR"
             cd "$APP_DIR"
+          fi
+
+          if [ ! -f "$APP_DIR/Dockerfile" ]; then
+            echo "Dockerfile niet gevonden in repository"
+            exit 1
+          fi
+
+          if [ ! -f "$SWARM_COMPOSE_FILE" ]; then
+            echo "docker-compose.swarm.yml niet gevonden in repository"
+            exit 1
           fi
 
           # Image bouwen
@@ -155,7 +170,7 @@ Resources:
             --image "$ECR_URI:$DATE_TAG" \
             --update-parallelism 1 \
             --update-delay 30s \
-            cloudshirt_web 2>/dev/null || \
+            "$SERVICE_NAME" 2>/dev/null || \
             echo "Service nog niet actief; update overgeslagen."
 
           # Verwijder ongebruikte images
@@ -164,52 +179,19 @@ Resources:
           chmod +x /usr/local/bin/nightly-build.sh
 
           # Nightly build inplannen om 02:00 UTC
-          echo "0 2 * * * root /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1" \
-            > /etc/cron.d/nightly-build
-
-          # Docker Compose stack-definitie neerzetten
-          mkdir -p /opt/cloudshirt-hugo
-          cat <<'DCEOF' > /opt/cloudshirt-hugo/docker-compose.yml
-          version: "3.9"
-          services:
-            web:
-              image: ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest
-              deploy:
-                replicas: 2
-                restart_policy:
-                  condition: on-failure
-                  delay: 5s
-                  max_attempts: 3
-                update_config:
-                  parallelism: 1
-                  delay: 30s
-                  failure_action: rollback
-                resources:
-                  limits:
-                    cpus: "0.5"
-                    memory: 512M
-              ports:
-                - "80:80"
-              networks:
-                - cloudshirt-net
-              healthcheck:
-                test: ["CMD", "wget", "-qO-", "http://localhost/"]
-                interval: 10s
-                timeout: 5s
-                retries: 5
-                start_period: 30s
-
-          networks:
-            cloudshirt-net:
-              driver: overlay
-              attachable: true
-          DCEOF
+          mkdir -p /etc/cron.d
+          echo "0 2 * * * root /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1" > /etc/cron.d/nightly-build
+          chmod 0644 /etc/cron.d/nightly-build
 
           # Eerste build direct uitvoeren (fouten loggen, setup gaat door)
+          echo "[UserData] Starting eerste build op $(date)..."
           if /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1; then
             echo "[UserData] Eerste build geslaagd."
           else
-            echo "[UserData] Eerste build mislukt - controleer /var/log/nightly-build.log"
+            BUILD_EXIT=$?
+            echo "[UserData] Eerste build mislukt (exit code: $BUILD_EXIT). Logs:"
+            tail -20 /var/log/nightly-build.log 2>/dev/null || echo "(log file not found)"
+            echo "[UserData] Continuing; nightly build will retry at 02:00 UTC..."
           fi
 
           # Wacht tot minimaal 1 worker 'Ready' is om race conditions met de ALB te voorkomen
@@ -235,10 +217,19 @@ Resources:
             echo "[UserData] WAARSCHUWING: geen worker Ready binnen timeout; stack deploy gaat toch door."
           fi
 
-          # Swarm stack starten met de zojuist gebouwde image
+          # Swarm stack deployen met betere logging
           cd /opt/cloudshirt-hugo
-          if ! docker stack deploy -c docker-compose.yml cloudshirt; then
-            echo "[UserData] WAARSCHUWING: docker stack deploy mislukt. Controleer docker service logs."
+          export ECR_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest"
+          echo "[UserData] Deploying stack van docker-compose.swarm.yml..."
+          if docker stack deploy -c docker-compose.swarm.yml cloudshirt 2>&1; then
+            echo "[UserData] Stack deploy geslaagd."
+          else
+            DEPLOY_EXIT=$?
+            echo "[UserData] Stack deploy fout (exit code: $DEPLOY_EXIT)."
+            echo "[UserData] Stack status:"
+            docker stack ls 2>&1 || true
+            echo "[UserData] Service status:"
+            docker service ls 2>&1 || true
           fi
 
           # Korte statusdump voor troubleshooting
