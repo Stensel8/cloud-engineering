@@ -32,8 +32,7 @@ param (
     [string[]]$StacksToRemove = @(
         "cloudshirt-swarm-asg",         # ASG workers (afhankelijk van ALB en netwerk)
         "cloudshirt-swarm-alb",         # ALB (afhankelijk van netwerk)
-        "cloudshirt-swarm-buildserver", # Buildserver (afhankelijk van netwerk, IAM, ECR)
-        "cloudshirt-swarm-iam",         # IAM rol en profile
+        "cloudshirt-swarm-buildserver", # Buildserver (afhankelijk van netwerk en ECR)
         "cloudshirt-swarm-ecr",         # ECR repository
         "cloudshirt-swarm-network"      # Netwerk (als laatste, alles hangt hiervan af)
     )

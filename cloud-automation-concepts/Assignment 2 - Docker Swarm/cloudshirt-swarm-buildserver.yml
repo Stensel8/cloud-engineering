@@ -10,8 +10,9 @@ Description: >
 Parameters:
 
   KeyName:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: EC2 Key Pair voor SSH-toegang
+    Type: String
+    Default: ""
+    Description: EC2 Key Pair naam (optioneel - laat leeg als je SSM gebruikt)
 
   BuildserverInstanceType:
     Type: String
@@ -19,9 +20,9 @@ Parameters:
     Description: EC2 instance type voor de Buildserver
 
   AmiId:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
-    Description: Meest recente Amazon Linux 2 AMI
+    Type: AWS::EC2::Image::Id
+    Default: ami-0190ba1cb5ab4e9e8
+    Description: Amazon Linux 2023 AMI (64-bit x86)
 
   ECRRepoName:
     Type: String
@@ -29,6 +30,12 @@ Parameters:
     Description: >
       Naam van de ECR-repository. Moet overeenkomen met de waarde
       in de cloudshirt-swarm-ecr stack.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
 
 # ---------------------------------------------------------------------------
 # Resources
@@ -39,13 +46,13 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref BuildserverInstanceType
-      KeyName: !Ref KeyName
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
       ImageId: !Ref AmiId
       # Buildserver staat in het private subnet (geen publiek IP)
       SubnetId: !ImportValue cloudshirt-swarm-network:PrivateSubnetA
       SecurityGroupIds:
         - !ImportValue cloudshirt-swarm-network:BuildserverSecurityGroup
-      IamInstanceProfile: !ImportValue cloudshirt-swarm-iam:InstanceProfileName
+      IamInstanceProfile: LabInstanceProfile
       Tags:
         - Key: Name
           Value: CloudShirt-Buildserver
