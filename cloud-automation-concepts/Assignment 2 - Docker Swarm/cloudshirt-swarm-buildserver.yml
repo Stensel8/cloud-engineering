@@ -120,7 +120,7 @@ Resources:
           REPO="${ECRRepoName}"
           ECR_URI="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$REPO"
           DATE_TAG=$(date +%Y%m%d)
-          APP_DIR="/opt/cloudshirt"
+          APP_DIR="/opt/cloudshirt-hugo"
 
           echo "[$(date)] Nightly build gestart..."
 
@@ -167,8 +167,8 @@ Resources:
             > /etc/cron.d/nightly-build
 
           # Docker Compose stack-definitie neerzetten
-          mkdir -p /opt/cloudshirt
-          cat <<'DCEOF' > /opt/cloudshirt/docker-compose.yml
+          mkdir -p /opt/cloudshirt-hugo
+          cat <<'DCEOF' > /opt/cloudshirt-hugo/docker-compose.yml
           version: "3.9"
           services:
             web:
@@ -208,7 +208,7 @@ Resources:
           /usr/local/bin/nightly-build.sh
 
           # Swarm stack starten met de zojuist gebouwde image
-          cd /opt/cloudshirt
+          cd /opt/cloudshirt-hugo
           docker stack deploy -c docker-compose.yml cloudshirt
 
           echo "[UserData] Buildserver setup voltooid."

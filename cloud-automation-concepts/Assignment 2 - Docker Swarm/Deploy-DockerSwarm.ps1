@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Deployt alle CloudFormation-stacks voor de CloudShirt Docker Swarm-omgeving.
+    Deployt alle CloudFormation-stacks voor de Cloudshirt-Hugo (Docker Swarm) omgeving.
 
 .DESCRIPTION
     Dit script leest AWS-credentials uit een lokaal aws.txt-bestand,
@@ -11,12 +11,14 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. cloudshirt-swarm-network    -- VPC, subnetten, NAT, security groups
-      2. cloudshirt-swarm-ecr        -- ECR repository
-      3. cloudshirt-swarm-iam        -- IAM rol en instance profile
-      4. cloudshirt-swarm-buildserver -- Buildserver (Swarm Manager)
-      5. cloudshirt-swarm-alb        -- Application Load Balancer
-      6. cloudshirt-swarm-asg        -- Auto Scaling Group (Swarm Workers)
+      1. cloudshirt-swarm-network     -- VPC, subnetten, NAT, security groups
+      2. cloudshirt-swarm-ecr         -- ECR repository
+      3. cloudshirt-swarm-buildserver -- Buildserver (Swarm Manager)
+      4. cloudshirt-swarm-alb         -- Application Load Balancer
+      5. cloudshirt-swarm-asg         -- Auto Scaling Group (Swarm Workers)
+
+    Opmerking: IAM wordt niet uitgerold via een aparte stack. De LabInstanceProfile
+    is een vooraf aangemaakte rol van AWS Academy die direct wordt gebruikt.
 
 .PARAMETER Region
     AWS-regio. Standaard: us-east-1 (vereist door AWS Academy).
@@ -300,7 +302,7 @@ $AlbDns = aws cloudformation describe-stacks `
     --output text 2>$null
 
 if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
-    Write-Output "CloudShirt applicatie-URL:"
+    Write-Output "Cloudshirt-Hugo applicatie-URL:"
     Write-Output "  http://$AlbDns"
 } else {
     Write-Output "Haal de ALB-URL op via:"
@@ -313,4 +315,4 @@ Write-Output "  1. Wacht tot de worker nodes de Swarm hebben gejoined (~2-3 min)
 Write-Output "  2. Verbind via SSM Session Manager met de Buildserver en voer uit:"
 Write-Output "       docker node ls"
 Write-Output "  3. Start de Docker Swarm service handmatig of wacht op de nightly build (02:00 UTC):"
-Write-Output "       cd /opt/cloudshirt && docker stack deploy -c docker-compose.yml cloudshirt"
+Write-Output "       cd /opt/cloudshirt-hugo && docker stack deploy -c docker-compose.yml cloudshirt"
