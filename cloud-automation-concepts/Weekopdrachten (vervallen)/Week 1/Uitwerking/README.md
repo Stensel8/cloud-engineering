@@ -150,7 +150,7 @@ De EC2-instance draait in het publieke subnet en installeert nginx automatisch v
 WebInstance:
   Type: AWS::EC2::Instance
   Properties:
-    ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'
+    ImageId: 'ami-0190ba1cb5ab4e9e8'
     InstanceType: t2.micro
     KeyName: !Ref KeyName
     SubnetId: !Ref PubliekSubnet

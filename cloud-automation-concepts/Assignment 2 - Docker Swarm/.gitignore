@@ -1,0 +1,10 @@
+# AWS credentials
+aws.txt
+*.credentials
+.aws/
+
+# Terraform state en gevoelige bestanden
+*.tfstate
+*.tfstate.backup
+terraform.tfvars
+.terraform/

@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudShirt Docker Swarm - ASG-stack.
+  Auto Scaling Group met worker nodes die automatisch de Docker Swarm joinen
+  via het join-token en manager-IP uit SSM Parameter Store.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+
+  KeyName:
+    Type: String
+    Default: ""
+    Description: EC2 Key Pair naam (optioneel - laat leeg als je SSM gebruikt)
+
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium]
+    Description: EC2 instance type voor worker nodes
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0190ba1cb5ab4e9e8
+    Description: Amazon Linux 2023 AMI (64-bit x86)
+
+  MinInstances:
+    Type: Number
+    Default: 2
+    Description: Minimum aantal worker instances
+
+  MaxInstances:
+    Type: Number
+    Default: 4
+    Description: Maximum aantal worker instances
+
+  DesiredInstances:
+    Type: Number
+    Default: 2
+    Description: Gewenst aantal worker instances
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  WorkerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: CloudShirt-Worker-LT
+      LaunchTemplateData:
+        InstanceType: !Ref InstanceType
+        KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
+        ImageId: !Ref AmiId
+        IamInstanceProfile:
+          Name: LabInstanceProfile
+        SecurityGroupIds:
+          - !ImportValue cloudshirt-swarm-network:WorkerSecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: CloudShirt-Worker
+              - Key: Role
+                Value: SwarmWorker
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -e
+            exec > /var/log/userdata.log 2>&1
+
+            # Pakketten installeren
+            yum update -y
+            yum install -y docker aws-cli jq
+
+            # Docker starten en inschakelen
+            systemctl enable docker
+            systemctl start docker
+            usermod -aG docker ec2-user
+
+            # Docker Compose v2 installeren
+            mkdir -p /usr/local/lib/docker/cli-plugins
+            curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 \
+              -o /usr/local/lib/docker/cli-plugins/docker-compose
+            chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+            # Wacht tot Docker klaar is en de Buildserver de SSM-parameters heeft opgeslagen
+            sleep 15
+
+            # Inloggen bij ECR
+            aws ecr get-login-password --region ${AWS::Region} | \
+              docker login --username AWS --password-stdin \
+              ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+
+            # Swarm join-token en manager-IP ophalen uit SSM Parameter Store
+            MANAGER_IP=$(aws ssm get-parameter \
+              --name "/cloudshirt/swarm/manager-ip" \
+              --query "Parameter.Value" --output text --region ${AWS::Region})
+
+            WORKER_TOKEN=$(aws ssm get-parameter \
+              --name "/cloudshirt/swarm/worker-token" \
+              --with-decryption \
+              --query "Parameter.Value" --output text --region ${AWS::Region})
+
+            # Joinen bij de Swarm
+            docker swarm join --token "$WORKER_TOKEN" "$MANAGER_IP:2377"
+
+            echo "[UserData] Worker gejoined aan Swarm op $MANAGER_IP"
+
+  WorkerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: CloudShirt-Worker-ASG
+      MinSize: !Ref MinInstances
+      MaxSize: !Ref MaxInstances
+      DesiredCapacity: !Ref DesiredInstances
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WorkerLaunchTemplate
+        Version: !GetAtt WorkerLaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !ImportValue cloudshirt-swarm-network:PrivateSubnetA
+        - !ImportValue cloudshirt-swarm-network:PrivateSubnetB
+      TargetGroupARNs:
+        - !ImportValue cloudshirt-swarm-alb:TargetGroupArn
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Worker
+          PropagateAtLaunch: true
+        - Key: Role
+          Value: SwarmWorker
+          PropagateAtLaunch: true
+
+  # Schaal automatisch bij hoge CPU-belasting
+  CPUScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref WorkerAutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 70.0

@@ -154,9 +154,8 @@ Resources:
   WebInstance:
     Type: AWS::EC2::Instance
     Properties:
-      # Dynamische verwijzing naar de nieuwste Amazon Linux 2023 AMI via SSM.
-      # Zo hoef je de AMI-ID niet handmatig bij te houden.
-      ImageId: '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.18-x86_64}}'
+      # Vaste Amazon Linux 2023 AMI voor consistente deployments.
+      ImageId: 'ami-0190ba1cb5ab4e9e8'
       InstanceType: t2.micro
       KeyName: !Ref KeyName
       SubnetId: !Ref PubliekSubnet

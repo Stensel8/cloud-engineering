@@ -1,21 +1,35 @@
-Description: CloudShirt .NET EFS stack
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  CloudShirt EFS-stack (REQ-03).
+  Voorziet in een versleuteld Elastic File System voor gedeelde opslag van
+  webserver-logbestanden. Mount targets in beide publieke subnets zorgen
+  dat alle EC2-instances en ASG-nodes dezelfde mappen kunnen benaderen.
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 Resources:
+
+  # ── Security Group voor NFS-verkeer (poort 2049) ─────────────────────────
+  # Alleen bereikbaar vanuit de VPC; niet publiek toegankelijk.
   CloudShirtEFSSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow NFS access to CloudShirt EFS
+      GroupDescription: NFS-toegang tot CloudShirt EFS vanuit de VPC
       VpcId: !ImportValue cloudshirt-network:VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 2049
           ToPort: 2049
           CidrIp: 10.0.0.0/16
-          Description: Allow NFS from VPC CIDR
+          Description: NFS-toegang vanuit de VPC
       Tags:
         - Key: Name
           Value: CloudShirtEFS-SG
 
+  # ── EFS Bestandssysteem ───────────────────────────────────────────────────
+  # Versleuteld, general purpose. Bestanden ouder dan 30 dagen worden
+  # automatisch naar Infrequent Access verplaatst (kostenbesparend).
   CloudShirtEFS:
     Type: AWS::EFS::FileSystem
     Properties:
@@ -23,7 +37,10 @@ Resources:
       PerformanceMode: generalPurpose
       LifecyclePolicies:
         - TransitionToIA: AFTER_30_DAYS
-        
+
+  # ── Mount Targets (één per subnet/AZ) ────────────────────────────────────
+  # Beide mount targets zijn nodig zodat instances in AZ1 en AZ2 het
+  # bestandssysteem kunnen koppelen met minimale latentie.
   CloudShirtEFSMountTarget1:
     Type: AWS::EFS::MountTarget
     Properties:
@@ -40,21 +57,25 @@ Resources:
       SecurityGroups:
         - !Ref CloudShirtEFSSG
 
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door EC2- en ASG-stacks
+# ---------------------------------------------------------------------------
 Outputs:
+
   EFSId:
-    Description: The CloudShirt EFS filesystem ID
+    Description: ID van het CloudShirt EFS-bestandssysteem
     Value: !Ref CloudShirtEFS
     Export:
       Name: !Sub "${AWS::StackName}:EFSid"
 
   EFSSG:
-    Description: Security group for CloudShirt EFS
+    Description: Security group voor CloudShirt EFS
     Value: !Ref CloudShirtEFSSG
     Export:
       Name: !Sub "${AWS::StackName}:EFSSG"
 
   EFSDNS:
-    Description: Regional DNS name of the EFS filesystem
+    Description: Regionale DNS-naam van het EFS-bestandssysteem
     Value: !Sub "${CloudShirtEFS}.efs.${AWS::Region}.amazonaws.com"
     Export:
       Name: !Sub "${AWS::StackName}:EFSDNS"

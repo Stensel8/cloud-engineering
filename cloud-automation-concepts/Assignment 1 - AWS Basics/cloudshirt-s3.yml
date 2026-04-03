@@ -1,24 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: S3 bucket voor RDS data met access logging
+Description: >
+  CloudShirt S3-stack (REQ-07).
+  Voorziet in een S3-bucket voor RDS-exports van de ordertabel.
+  Publieke toegang is volledig geblokkeerd.
 
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
 Parameters:
+
   BucketName:
     Type: String
-    Description: Naam van de S3 bucket
-    Default: rds-export-bucket-cloudshirt-luca
+    Description: Naam van de S3-bucket voor RDS-exports
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 Resources:
-  RDSExportBucketLogs:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "${BucketName}-logs"
-      VersioningConfiguration:
-        Status: Enabled
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
 
   RDSExportBucket:
     Type: AWS::S3::Bucket
@@ -31,15 +29,16 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      LoggingConfiguration:
-        DestinationBucketName: !Ref RDSExportBucketLogs
-        LogFilePrefix: access-logs/
 
+# ---------------------------------------------------------------------------
+# Outputs
+# ---------------------------------------------------------------------------
 Outputs:
+
   BucketName:
-    Description: Naam van de bucket
+    Description: Naam van de RDS-exportbucket
     Value: !Ref RDSExportBucket
 
   BucketArn:
-    Description: ARN van de bucket
+    Description: ARN van de RDS-exportbucket
     Value: !GetAtt RDSExportBucket.Arn

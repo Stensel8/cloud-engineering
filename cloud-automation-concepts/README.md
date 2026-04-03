@@ -64,21 +64,24 @@ Bouw een AWS CloudFormation-oplossing die alle negen leerdoelen dekt en voldoet 
 
 ### Assignment 2: Docker in the Cloud
 
-> Bestanden in [Assignment 2 - Docker/](Assignment%202%20-%20Docker/)
+> Bestanden in [Assignment 2 - Docker Swarm/](Assignment%202%20-%20Docker%20Swarm/)
 
 Bouw voort op Assignment 1. Dockeriseer de applicatie en richt een Docker-infrastructuur in op AWS.
 
 **Deliverables:** Templates en scripts, plus een rapport (~3 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.
 
+> [!IMPORTANT]
+> Assignment 2 gebruikt **Stensel8/Cloudshirt-Hugo** als applicatiebasis. De `Dockerfile` en `docker-compose.yml` staan in die repository.
+
 | Requirement | Bewijs |
 |---|---|
-| REQ-08 - Applicatie is gedockeriseerd |  |
-| REQ-09 - Applicatie wordt gebouwd op een Buildserver in het private subnet |  |
-| REQ-10 - Docker Compose voor services en uitrol |  |
-| REQ-11 - Nightly builds op de Buildserver |  |
-| REQ-12 - Images worden gepusht naar AWS ECR |  |
-| REQ-13 - Buildserver als Swarm Manager |  |
-| REQ-14 - ASG-instances als Swarm Workers |  |
+| REQ-08 - Applicatie is gedockeriseerd | [Dockerfile](https://github.com/Stensel8/Cloudshirt-Hugo/blob/main/Dockerfile) (Stensel8/Cloudshirt-Hugo) |
+| REQ-09 - Applicatie wordt gebouwd op een Buildserver in het private subnet | [cloudshirt-swarm-buildserver.yml](Assignment%202%20-%20Docker%20Swarm/cloudshirt-swarm-buildserver.yml) |
+| REQ-10 - Docker Compose voor services en uitrol | [docker-compose.yml](https://github.com/Stensel8/Cloudshirt-Hugo/blob/main/docker-compose.yml) (Stensel8/Cloudshirt-Hugo) |
+| REQ-11 - Nightly builds op de Buildserver | [cloudshirt-swarm-buildserver.yml](Assignment%202%20-%20Docker%20Swarm/cloudshirt-swarm-buildserver.yml) (cron 02:00 UTC via nightly-build.sh) |
+| REQ-12 - Images worden gepusht naar AWS ECR | [cloudshirt-swarm-ecr.yml](Assignment%202%20-%20Docker%20Swarm/cloudshirt-swarm-ecr.yml) + [cloudshirt-swarm-buildserver.yml](Assignment%202%20-%20Docker%20Swarm/cloudshirt-swarm-buildserver.yml) (nightly-build.sh) |
+| REQ-13 - Buildserver als Swarm Manager | [cloudshirt-swarm-buildserver.yml](Assignment%202%20-%20Docker%20Swarm/cloudshirt-swarm-buildserver.yml) |
+| REQ-14 - ASG-instances als Swarm Workers | [cloudshirt-swarm-asg.yml](Assignment%202%20-%20Docker%20Swarm/cloudshirt-swarm-asg.yml) |
 
 ### Assignment 3: Cloud Orchestration
 

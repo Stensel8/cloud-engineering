@@ -10,33 +10,6 @@ Parameters:
 
 Resources:
 
-  RDSMonitoringRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: monitoring.rds.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
-
-  CloudShirtDBSecretKMSKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: KMS key for CloudShirt RDS Secrets Manager secret
-      EnableKeyRotation: true
-      KeyPolicy:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
-            Action: "kms:*"
-            Resource: "*"
-
   CloudShirtDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -52,7 +25,6 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Description: Credentials for CloudShirt RDS master user
-      KmsKeyId: !Ref CloudShirtDBSecretKMSKey
       GenerateSecretString:
         SecretStringTemplate: '{"username":"csadmin"}'
         GenerateStringKey: password
@@ -75,8 +47,7 @@ Resources:
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:password}}"
       LicenseModel: license-included
       StorageEncrypted: true
-      MonitoringInterval: 60
-      MonitoringRoleArn: !GetAtt RDSMonitoringRole.Arn
+      MonitoringInterval: 0
       VPCSecurityGroups:
         - !ImportValue cloudshirt-network:rdsSG
       DBSubnetGroupName: !Ref CloudShirtDBSubnetGroup

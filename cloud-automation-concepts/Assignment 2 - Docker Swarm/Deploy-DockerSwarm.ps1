@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Deployt alle CloudFormation-stacks voor de CloudShirt-omgeving.
+    Deployt alle CloudFormation-stacks voor de Cloudshirt-Hugo (Docker Swarm) omgeving.
 
 .DESCRIPTION
     Dit script leest AWS-credentials uit een lokaal aws.txt-bestand,
@@ -11,25 +11,24 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. base-stack              -- VPC, subnetten, gateways
-      2. cloudshirt-efs         -- Elastic File System
-         cloudshirt-elk         -- ELK monitoring stack
-         cloudshirt-rds         -- RDS SQL Server database
-      3. cloudshirt-ec2         -- EC2-webservers
-      4. cloudshirt-lb          -- Application Load Balancer
-      5. cloudshirt-asg         -- Auto Scaling Group
-      6. cloudshirt-s3          -- S3-bucket voor exports
-      7. cloudshirt-serverless  -- Lambda export-monitor (REQ-08)
+      1. cloudshirt-swarm-network     -- VPC, subnetten, NAT, security groups
+      2. cloudshirt-swarm-ecr         -- ECR repository
+      3. cloudshirt-swarm-buildserver -- Buildserver (Swarm Manager)
+      4. cloudshirt-swarm-alb         -- Application Load Balancer
+      5. cloudshirt-swarm-asg         -- Auto Scaling Group (Swarm Workers)
+
+    Opmerking: IAM wordt niet uitgerold via een aparte stack. De LabInstanceProfile
+    is een vooraf aangemaakte rol van AWS Academy die direct wordt gebruikt.
 
 .PARAMETER Region
     AWS-regio. Standaard: us-east-1 (vereist door AWS Academy).
 
-.PARAMETER BucketName
-    Naam van de S3-bucket voor RDS-exports. Wordt gevraagd als niet opgegeven.
+.PARAMETER KeyName
+    Naam van het EC2 Key Pair voor SSH-toegang. Wordt gevraagd als niet opgegeven.
 
 .EXAMPLE
-    .\Deploy-CloudShirt.ps1
-    .\Deploy-CloudShirt.ps1 -BucketName "mijn-bucket-naam"
+    .\Deploy-DockerSwarm.ps1
+    .\Deploy-DockerSwarm.ps1 -KeyName "mijn-keypair"
 
 .NOTES
     Vereisten:
@@ -40,8 +39,8 @@
 
 [CmdletBinding()]
 param (
-    [string]$Region     = "us-east-1",
-    [string]$BucketName = ""
+    [string]$Region  = "us-east-1",
+    [string]$KeyName = ""
 )
 
 Set-StrictMode -Version Latest
@@ -93,7 +92,6 @@ if (-not (Test-Path $AwsFile)) {
     exit 1
 }
 
-# Laad de sleutel-waardeparen uit het bestand
 $AwsData = @{}
 Get-Content $AwsFile | ForEach-Object {
     if ($_ -match '^\s*([^#][^=]+)\s*=\s*(.+)\s*$') {
@@ -101,7 +99,6 @@ Get-Content $AwsFile | ForEach-Object {
     }
 }
 
-# Controleer of alle vereiste sleutels aanwezig zijn
 foreach ($RequiredKey in @('aws_access_key_id', 'aws_secret_access_key', 'aws_session_token')) {
     if (-not $AwsData.ContainsKey($RequiredKey)) {
         Write-Output "FOUT: sleutel '$RequiredKey' ontbreekt in aws.txt"
@@ -119,7 +116,6 @@ $env:AWS_SECRET_ACCESS_KEY = $AwsData['aws_secret_access_key']
 $env:AWS_SESSION_TOKEN     = $AwsData['aws_session_token']
 $env:AWS_DEFAULT_REGION    = $Region
 
-# Valideer credentials door de accountidentiteit op te halen
 $null = aws sts get-caller-identity 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Output "FOUT: AWS-credentials zijn ongeldig of verlopen."
@@ -134,28 +130,15 @@ Write-Output "Credentials zijn geldig."
 # ---------------------------------------------------------------------------
 Write-Section "Invoer verzamelen"
 
-# Account ID automatisch ophalen (vereist voor sommige stack-parameters)
-$AccountId = aws sts get-caller-identity --query "Account" --output text 2>$null
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($AccountId)) {
-    $AccountId = Read-Host "Voer je AWS Account ID in (bijv. 730335381450)"
-    if ([string]::IsNullOrWhiteSpace($AccountId)) {
-        Write-Output "FOUT: geen Account ID opgegeven."
-        exit 1
-    }
+if ([string]::IsNullOrWhiteSpace($KeyName)) {
+    $KeyName = Read-Host "Geef de naam van je EC2 Key Pair (Enter = geen, verbinden via SSM)"
 }
 
-Write-Output "Account ID: $AccountId"
-
-# S3-bucketnaam opvragen; standaard op account-ID gebaseerde naam zodat die uniek is
-$DefaultBucketName = "cloudshirt-exports-$AccountId"
-if ([string]::IsNullOrWhiteSpace($BucketName)) {
-    $BucketName = Read-Host "Geef een naam voor de S3-bucket (Enter = $DefaultBucketName)"
-    if ([string]::IsNullOrWhiteSpace($BucketName)) {
-        $BucketName = $DefaultBucketName
-    }
+if ([string]::IsNullOrWhiteSpace($KeyName)) {
+    Write-Output "Geen Key Pair opgegeven - verbinding via SSM Session Manager."
+} else {
+    Write-Output "Key Pair: $KeyName"
 }
-
-Write-Output "S3-bucketnaam: $BucketName"
 
 # ---------------------------------------------------------------------------
 # Hulpfunctie: deploy een CloudFormation-stack
@@ -166,26 +149,19 @@ Write-Output "S3-bucketnaam: $BucketName"
 function Invoke-StackDeployment {
     [CmdletBinding()]
     param (
-        # Naam van de CloudFormation-stack (bijv. "cloudshirt-network")
+        # Naam van de CloudFormation-stack
         [Parameter(Mandatory)][string]$StackName,
 
         # Pad naar het CloudFormation-templatebestand
         [Parameter(Mandatory)][string]$TemplateFile,
 
-        # Voeg AWS-credentials toe als stack-parameters (nodig voor EC2 UserData)
-        [switch]$IncludeCredentials,
-
-        # Voeg de S3-bucketnaam toe als stack-parameter
-        [switch]$IncludeBucket,
-
-        # Voeg de ALB logbucket-parameter toe (alleen voor loadbalancer-stack)
-        [switch]$IncludeLogBucket
+        # Extra stack-parameters als array van "ParameterKey=...,ParameterValue=..." strings
+        [string[]]$Params = @()
     )
 
     Write-Output ""
     Write-Output "  -> $StackName ($TemplateFile)"
 
-    # Los templatepad op relatief aan de scriptlocatie, niet aan de huidige shellmap
     $ResolvedTemplateFile = if ([System.IO.Path]::IsPathRooted($TemplateFile)) {
         $TemplateFile
     } else {
@@ -197,27 +173,7 @@ function Invoke-StackDeployment {
         exit 1
     }
 
-    # Bouw de parameters-array op
-    $Params = @()
-
-    if ($IncludeCredentials) {
-        $Params += @(
-            "ParameterKey=AccessKey,ParameterValue=$($env:AWS_ACCESS_KEY_ID)",
-            "ParameterKey=SecretKey,ParameterValue=$($env:AWS_SECRET_ACCESS_KEY)",
-            "ParameterKey=SessionToken,ParameterValue=$($env:AWS_SESSION_TOKEN)",
-            "ParameterKey=AccountId,ParameterValue=$AccountId"
-        )
-    }
-
-    if ($IncludeBucket) {
-        $Params += "ParameterKey=BucketName,ParameterValue=$BucketName"
-    }
-
-    if ($IncludeLogBucket) {
-        $Params += "ParameterKey=LogBucketName,ParameterValue=$BucketName"
-    }
-
-    # Bepaal of de stack al bestaat en in welke status hij staat
+    # Controleer of de stack al bestaat en in welke status hij staat
     $StackStatus = aws cloudformation describe-stacks --stack-name $StackName --query "Stacks[0].StackStatus" --output text 2>$null
     $StackExists = ($LASTEXITCODE -eq 0)
 
@@ -241,11 +197,18 @@ function Invoke-StackDeployment {
 
     if ($StackExists) {
         # Stack bestaat: bijwerken
-        $UpdateOutput = aws cloudformation update-stack `
-            --stack-name $StackName `
-            --template-body "file://$ResolvedTemplateFile" `
-            --parameters $Params `
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
+        if ($Params.Count -gt 0) {
+            $UpdateOutput = aws cloudformation update-stack `
+                --stack-name $StackName `
+                --template-body "file://$ResolvedTemplateFile" `
+                --parameters $Params `
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
+        } else {
+            $UpdateOutput = aws cloudformation update-stack `
+                --stack-name $StackName `
+                --template-body "file://$ResolvedTemplateFile" `
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
+        }
 
         if ($LASTEXITCODE -eq 0) {
             Write-Output "    Wachten op update..."
@@ -262,11 +225,18 @@ function Invoke-StackDeployment {
         }
     } else {
         # Stack bestaat niet: aanmaken
-        aws cloudformation create-stack `
-            --stack-name $StackName `
-            --template-body "file://$ResolvedTemplateFile" `
-            --parameters $Params `
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+        if ($Params.Count -gt 0) {
+            aws cloudformation create-stack `
+                --stack-name $StackName `
+                --template-body "file://$ResolvedTemplateFile" `
+                --parameters $Params `
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+        } else {
+            aws cloudformation create-stack `
+                --stack-name $StackName `
+                --template-body "file://$ResolvedTemplateFile" `
+                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+        }
 
         if ($LASTEXITCODE -ne 0) {
             Write-Output "    FOUT: aanmaken van stack mislukt."
@@ -286,46 +256,37 @@ function Invoke-StackDeployment {
 # ---------------------------------------------------------------------------
 # Stap 5: deployment uitvoeren in de juiste volgorde
 #
-# De volgorde is belangrijk: latere stacks importeren outputs van eerdere stacks
-# via !ImportValue. Een stack die nog niet bestaat kan niet worden geimporteerd.
+# De volgorde is belangrijk: latere stacks importeren outputs van eerdere
+# stacks via !ImportValue. Een stack die nog niet bestaat kan niet worden
+# geimporteerd.
 # ---------------------------------------------------------------------------
 Write-Section "Deployment starten"
 
-# 1. Netwerk-basisinfrastructuur (VPC, subnetten, gateways, security groups)
+# 1. Netwerk-basisinfrastructuur
 #    Alle andere stacks zijn hiervan afhankelijk.
-Write-Output "Stap 1/7 - Netwerk"
-Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
+Write-Output "Stap 1/5 - Netwerk"
+Invoke-StackDeployment -StackName "cloudshirt-swarm-network" -TemplateFile ".\cloudshirt-swarm-network.yml"
 
-# 2. Gedeelde services (afhankelijk van het netwerk)
-Write-Output "Stap 2/7 - Gedeelde services (EFS, ELK, RDS)"
-Invoke-StackDeployment -StackName "cloudshirt-efs" -TemplateFile ".\cloudshirt-efs.yml"
-Invoke-StackDeployment -StackName "cloudshirt-elk" -TemplateFile ".\cloudshirt-elk.yml"
-Invoke-StackDeployment -StackName "cloudshirt-rds" -TemplateFile ".\cloudshirt-rds.yml"
+# 2. ECR-repository voor Docker-images
+Write-Output "Stap 2/5 - ECR"
+Invoke-StackDeployment -StackName "cloudshirt-swarm-ecr" -TemplateFile ".\cloudshirt-swarm-ecr.yml"
 
-# 3. EC2-webservers (afhankelijk van EFS, ELK en RDS voor de installatie via UserData)
-Write-Output "Stap 3/7 - EC2-webservers"
-Invoke-StackDeployment -StackName "cloudshirt-ec2" -TemplateFile ".\cloudshirt-ec2.yml" `
-    -IncludeCredentials -IncludeBucket
+# 3. Buildserver (Swarm Manager)
+#    Gebruikt de vooraf aangemaakte LabInstanceProfile van AWS Academy.
+#    Initialiseert de Swarm en slaat join-token op in SSM.
+Write-Output "Stap 3/5 - Buildserver (Swarm Manager)"
+Invoke-StackDeployment -StackName "cloudshirt-swarm-buildserver" -TemplateFile ".\cloudshirt-swarm-buildserver.yml" `
+    -Params @("ParameterKey=KeyName,ParameterValue=$KeyName")
 
-# 4. S3-bucket voor exports en ALB access logs
-Write-Output "Stap 4/7 - S3-bucket"
-Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3.yml" `
-    -IncludeBucket
+# 4. Application Load Balancer
+Write-Output "Stap 4/5 - Application Load Balancer"
+Invoke-StackDeployment -StackName "cloudshirt-swarm-alb" -TemplateFile ".\cloudshirt-swarm-alb.yml"
 
-# 5. Load Balancer (afhankelijk van de EC2-instances als target)
-Write-Output "Stap 5/7 - Load Balancer"
-Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml"
-
-# 6. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
-Write-Output "Stap 6/7 - Auto Scaling Group"
-Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
-    -IncludeCredentials -IncludeBucket
-
-# 7. Serverless Lambda export-monitor (REQ-08)
-#    Afhankelijk van cloudshirt-s3 (bucket moet bestaan voor de Lambda wordt aangemaakt)
-Write-Output "Stap 7/7 - Serverless export-monitor (REQ-08)"
-Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
-    -IncludeBucket
+# 5. Auto Scaling Group (Swarm Workers)
+#    Afhankelijk van ALB target group en SSM-parameters van de Buildserver.
+Write-Output "Stap 5/5 - Auto Scaling Group (Swarm Workers)"
+Invoke-StackDeployment -StackName "cloudshirt-swarm-asg" -TemplateFile ".\cloudshirt-swarm-asg.yml" `
+    -Params @("ParameterKey=KeyName,ParameterValue=$KeyName")
 
 # ---------------------------------------------------------------------------
 # Klaar
@@ -333,19 +294,40 @@ Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloud
 Write-Section "Deployment voltooid"
 Write-Output "Alle stacks zijn succesvol gedeployt."
 Write-Output ""
-Write-Output "Vereisten afgevinkt:"
-Write-Output "  REQ-01  HA over meerdere AZ's met ALB"
-Write-Output "  REQ-02  Auto Scaling spike-traffic (6-8 PM ET)"
-Write-Output "  REQ-03  EFS voor gedeelde logbestanden"
-Write-Output "  REQ-04  RDS SQL Server via CloudFormation (IaC)"
-Write-Output "  REQ-05  ELK Stack v8.x monitoring"
-Write-Output "  REQ-06  Filebeat -> Logstash (optioneel, aanwezig)"
-Write-Output "  REQ-07  Dagelijkse order-export naar S3 (bcp cron)"
-Write-Output "  REQ-08  Serverless Lambda export-monitor via EventBridge"
+
+# ALB-URL ophalen en tonen
+$AlbDns = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-swarm-alb" `
+    --query "Stacks[0].Outputs[?OutputKey=='ALBDNSName'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
+    Write-Output "Cloudshirt-Hugo applicatie-URL:"
+    Write-Output "  http://$AlbDns"
+} else {
+    Write-Output "Haal de ALB-URL op via:"
+    Write-Output "  aws cloudformation describe-stacks --stack-name cloudshirt-swarm-alb --query 'Stacks[0].Outputs'"
+}
+
+# Eerste ALB target health tonen voor snellere troubleshooting
+$TargetGroupArn = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-swarm-alb" `
+    --query "Stacks[0].Outputs[?OutputKey=='TargetGroupArn'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
+    Write-Output ""
+    Write-Output "ALB target health (eerste controle):"
+    aws elbv2 describe-target-health `
+        --target-group-arn $TargetGroupArn `
+        --query "TargetHealthDescriptions[].{Instance:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason,Description:TargetHealth.Description}" `
+        --output table
+}
+
 Write-Output ""
 Write-Output "Volgende stappen:"
-Write-Output "  1. Haal de ALB-URL op:"
-Write-Output "     aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
-Write-Output "  2. Open de URL in je browser om de CloudShirt-applicatie te testen."
-Write-Output "  3. Controleer Kibana (poort 5601 op de ELK-server) voor logs."
-Write-Output "  4. Controleer CloudWatch Logs voor de Lambda export-monitor resultaten."
+Write-Output "  1. Wacht 2-5 minuten tot workers Ready zijn en ALB health checks groen worden."
+Write-Output "  2. Verbind via SSM Session Manager met de Buildserver en voer uit:"
+Write-Output "       docker node ls"
+Write-Output "  3. Controleer of de service draait:"
+Write-Output "       docker service ls && docker service ps cloudshirt_web"

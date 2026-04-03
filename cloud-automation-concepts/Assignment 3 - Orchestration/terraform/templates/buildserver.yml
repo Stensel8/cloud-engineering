@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  Deploy Amazon Linux 2 EC2 instance with Docker, Docker Compose, fixed private IP, 
+  Deploy Amazon Linux 2 EC2 instance with Docker, Docker Compose, fixed private IP,
   initialize Docker Swarm, token wordt weggeschreven naar EFS
 
 Parameters:
@@ -17,7 +17,7 @@ Parameters:
     Description: GCP Artifact Registry repository
   GCPServiceAccountJson:
     Type: String
-    Description: Base64-encoded GCP service account key  
+    Description: Base64-encoded GCP service account key
   InstanceType:
     Type: String
     Default: t3.small
@@ -33,7 +33,7 @@ Resources:
   WebInstance1:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-0254b2d5c4c472488
+      ImageId: ami-0190ba1cb5ab4e9e8
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
       SubnetId: !ImportValue base-stack:CloudShirtFirstSubnet
@@ -46,18 +46,18 @@ Resources:
           Ebs:
             VolumeSize: 20
             VolumeType: gp3
-            DeleteOnTermination: true 
+            DeleteOnTermination: true
       Tags:
         - Key: Name
           Value: CloudShirt-Web-1-DockerSwarmHost
       UserData:
-        Fn::Base64: !Sub 
+        Fn::Base64: !Sub
         - |
           #!/bin/bash -xe
 
           yum update -y
           yum install -y gcc git unzip curl jq nfs-utils amazon-efs-utils
-          
+
           # Voeg Google Cloud SDK repo toe
           tee /etc/yum.repos.d/google-cloud-sdk.repo << EOL
           [google-cloud-sdk]
@@ -107,14 +107,14 @@ Resources:
           cd "/home/ec2-user"
           echo "Current directory: $(pwd)"
 
-          git clone https://github.com/537845Ahmed/CloudShirt-1.git
+          git clone https://github.com/Stensel8/CloudShirt-1.git
 
           cd "/home/ec2-user/CloudShirt-1"
           echo "Current directory: $(pwd)"
-          
+
           # BASH SCRIPT VOOR ENDPOINT
-          chmod +x endpointshetter-2.sh 
-          ./endpointshetter-2.sh 
+          chmod +x endpointshetter-2.sh
+          ./endpointshetter-2.sh
 
           # Build en push Docker images naar Google Artifact Registry
           cd "/home/ec2-user/CloudShirt-1"
@@ -124,7 +124,7 @@ Resources:
 
           docker build -t ${GCPRegion}-docker.pkg.dev/${GCPProjectID}/${GCPRepo}/eshoppublicapi:latest -f src/PublicApi/Dockerfile .
           docker push ${GCPRegion}-docker.pkg.dev/${GCPProjectID}/${GCPRepo}/eshoppublicapi:latest
-          
+
         - EFS_DNS: !ImportValue efs-stack:EFSDNS
           RDSENDPOINT: !ImportValue rds-stack:RDSEndpointAddress
 
@@ -140,4 +140,4 @@ Outputs:
     Value: /mnt/efs/swarm-join-command.txt
     Export:
       Name: !Sub "${AWS::StackName}:SwarmJoinCommandEFS"
-      
+

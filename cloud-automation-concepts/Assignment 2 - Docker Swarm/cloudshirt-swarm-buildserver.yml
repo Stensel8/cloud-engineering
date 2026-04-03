@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudShirt Docker Swarm - Buildserver-stack.
+  EC2 instance als Docker Swarm Manager: initialiseert de Swarm,
+  slaat join-token op in SSM en voert nightly builds uit naar ECR.
+
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
+Parameters:
+
+  KeyName:
+    Type: String
+    Default: ""
+    Description: EC2 Key Pair naam (optioneel - laat leeg als je SSM gebruikt)
+
+  BuildserverInstanceType:
+    Type: String
+    Default: t3.small
+    Description: EC2 instance type voor de Buildserver
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-0190ba1cb5ab4e9e8
+    Description: Amazon Linux 2023 AMI (64-bit x86)
+
+  ECRRepoName:
+    Type: String
+    Default: cloudshirt
+    Description: >
+      Naam van de ECR-repository. Moet overeenkomen met de waarde
+      in de cloudshirt-swarm-ecr stack.
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+
+  BuildserverInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref BuildserverInstanceType
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
+      ImageId: !Ref AmiId
+      # Buildserver staat in het private subnet (geen publiek IP)
+      SubnetId: !ImportValue cloudshirt-swarm-network:PrivateSubnetA
+      SecurityGroupIds:
+        - !ImportValue cloudshirt-swarm-network:BuildserverSecurityGroup
+      IamInstanceProfile: LabInstanceProfile
+      Tags:
+        - Key: Name
+          Value: CloudShirt-Buildserver
+        - Key: Role
+          Value: SwarmManager
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          exec > /var/log/userdata.log 2>&1
+
+          # Pakketten installeren
+          yum update -y
+          yum install -y docker git aws-cli jq cronie
+
+          # Docker starten en inschakelen
+          systemctl enable docker
+          systemctl start docker
+          systemctl enable crond
+          systemctl start crond
+          usermod -aG docker ec2-user
+
+          # Docker Compose v2 installeren
+          mkdir -p /usr/local/lib/docker/cli-plugins
+          curl -SL https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64 \
+            -o /usr/local/lib/docker/cli-plugins/docker-compose
+          chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+          # Wacht tot Docker klaar is
+          sleep 10
+
+          # Docker Swarm initialiseren (deze node = manager)
+          # hostname -I geeft het primaire IP zonder afhankelijkheid van IMDS
+          PRIVATE_IP=$(hostname -I | awk '{print $1}')
+          docker swarm init --advertise-addr $PRIVATE_IP
+
+          # Swarm join-token en manager-IP opslaan in SSM Parameter Store
+          WORKER_TOKEN=$(docker swarm join-token worker -q)
+          aws ssm put-parameter \
+            --name "/cloudshirt/swarm/worker-token" \
+            --value "$WORKER_TOKEN" \
+            --type SecureString \
+            --overwrite \
+            --region ${AWS::Region}
+
+          aws ssm put-parameter \
+            --name "/cloudshirt/swarm/manager-ip" \
+            --value "$PRIVATE_IP" \
+            --type String \
+            --overwrite \
+            --region ${AWS::Region}
+
+          # ECR login helper
+          cat <<'EOF' > /usr/local/bin/ecr-login.sh
+          #!/bin/bash
+          aws ecr get-login-password --region ${AWS::Region} | \
+            docker login --username AWS --password-stdin \
+            ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          EOF
+          chmod +x /usr/local/bin/ecr-login.sh
+
+          # Nightly build script: clone/pull -> build -> push naar ECR -> rolling update Swarm
+          # Dockerfile en docker-compose.yml komen rechtstreeks uit CloudShirt-Hugo.
+          cat <<'EOF' > /usr/local/bin/nightly-build.sh
+          #!/bin/bash
+          set -e
+          REGION="${AWS::Region}"
+          ACCOUNT="${AWS::AccountId}"
+          REPO="${ECRRepoName}"
+          ECR_URI="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$REPO"
+          DATE_TAG=$(date +%Y%m%d)
+          APP_DIR="/opt/cloudshirt-hugo"
+          SWARM_COMPOSE_FILE="$APP_DIR/docker-compose.swarm.yml"
+          SERVICE_NAME="cloudshirt_web"
+
+          echo "[$(date)] Nightly build gestart..."
+
+          # Inloggen bij ECR
+          aws ecr get-login-password --region $REGION | \
+            docker login --username AWS --password-stdin "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
+
+          # Broncode ophalen of bijwerken
+          if [ -d "$APP_DIR" ]; then
+            cd "$APP_DIR" && git pull
+          else
+            git clone https://github.com/Stensel8/CloudShirt-Hugo "$APP_DIR"
+            cd "$APP_DIR"
+          fi
+
+          if [ ! -f "$APP_DIR/Dockerfile" ]; then
+            echo "Dockerfile niet gevonden in repository"
+            exit 1
+          fi
+
+          if [ ! -f "$SWARM_COMPOSE_FILE" ]; then
+            echo "docker-compose.swarm.yml niet gevonden in repository"
+            exit 1
+          fi
+
+          # Image bouwen
+          docker build -t "$REPO:$DATE_TAG" -t "$REPO:latest" .
+
+          # Taggen voor ECR
+          docker tag "$REPO:$DATE_TAG" "$ECR_URI:$DATE_TAG"
+          docker tag "$REPO:latest"    "$ECR_URI:latest"
+
+          # Pushen naar ECR
+          docker push "$ECR_URI:$DATE_TAG"
+          docker push "$ECR_URI:latest"
+
+          echo "[$(date)] Build klaar: $ECR_URI:$DATE_TAG"
+
+          # Swarm service bijwerken (rolling update)
+          docker service update \
+            --image "$ECR_URI:$DATE_TAG" \
+            --update-parallelism 1 \
+            --update-delay 30s \
+            "$SERVICE_NAME" 2>/dev/null || \
+            echo "Service nog niet actief; update overgeslagen."
+
+          # Verwijder ongebruikte images
+          docker image prune -f
+          EOF
+          chmod +x /usr/local/bin/nightly-build.sh
+
+          # Nightly build inplannen om 02:00 UTC
+          mkdir -p /etc/cron.d
+          echo "0 2 * * * root /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1" > /etc/cron.d/nightly-build
+          chmod 0644 /etc/cron.d/nightly-build
+
+          # Eerste build direct uitvoeren (fouten loggen, setup gaat door)
+          echo "[UserData] Starting eerste build op $(date)..."
+          if /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1; then
+            echo "[UserData] Eerste build geslaagd."
+          else
+            BUILD_EXIT=$?
+            echo "[UserData] Eerste build mislukt (exit code: $BUILD_EXIT). Logs:"
+            tail -20 /var/log/nightly-build.log 2>/dev/null || echo "(log file not found)"
+            echo "[UserData] Continuing; nightly build will retry at 02:00 UTC..."
+          fi
+
+          # Wacht tot minimaal 1 worker 'Ready' is om race conditions met de ALB te voorkomen
+          echo "[UserData] Wachten op worker nodes in Ready status..."
+          MAX_WAIT_SECONDS=600
+          WAIT_INTERVAL=15
+          ELAPSED=0
+          READY_WORKERS=0
+
+          while [ "$ELAPSED" -lt "$MAX_WAIT_SECONDS" ]; do
+            READY_WORKERS=$(docker node ls --filter role=worker --format '{{.Status}}' | grep -c '^Ready$' || true)
+
+            if [ "$READY_WORKERS" -ge 1 ]; then
+              echo "[UserData] Worker(s) gereed: $READY_WORKERS"
+              break
+            fi
+
+            sleep "$WAIT_INTERVAL"
+            ELAPSED=$((ELAPSED + WAIT_INTERVAL))
+          done
+
+          if [ "$READY_WORKERS" -lt 1 ]; then
+            echo "[UserData] WAARSCHUWING: geen worker Ready binnen timeout; stack deploy gaat toch door."
+          fi
+
+          # Swarm stack deployen met betere logging
+          cd /opt/cloudshirt-hugo
+          export ECR_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest"
+          echo "[UserData] Deploying stack van docker-compose.swarm.yml..."
+          if docker stack deploy -c docker-compose.swarm.yml cloudshirt 2>&1; then
+            echo "[UserData] Stack deploy geslaagd."
+          else
+            DEPLOY_EXIT=$?
+            echo "[UserData] Stack deploy fout (exit code: $DEPLOY_EXIT)."
+            echo "[UserData] Stack status:"
+            docker stack ls 2>&1 || true
+            echo "[UserData] Service status:"
+            docker service ls 2>&1 || true
+          fi
+
+          # Korte statusdump voor troubleshooting
+          docker node ls || true
+          docker service ls || true
+
+          echo "[UserData] Buildserver setup voltooid."
+
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door andere stacks
+# ---------------------------------------------------------------------------
+Outputs:
+
+  BuildserverPrivateIP:
+    Description: Privaat IP-adres van de Buildserver (Swarm Manager)
+    Value: !GetAtt BuildserverInstance.PrivateIp
+    Export:
+      Name: !Sub "${AWS::StackName}:BuildserverPrivateIP"
