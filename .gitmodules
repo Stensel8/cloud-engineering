@@ -2,3 +2,7 @@
 	path = cloud-automation-concepts/CloudShirt
 	url = https://github.com/Stensel8/CloudShirt.git
 	branch = main
+[submodule "cloud-automation-concepts/CloudShirt-Hugo"]
+	path = cloud-automation-concepts/CloudShirt-Hugo
+	url = https://github.com/Stensel8/CloudShirt-Hugo.git
+	branch = main
