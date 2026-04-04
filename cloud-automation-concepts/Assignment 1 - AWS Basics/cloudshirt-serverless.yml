@@ -15,6 +15,10 @@ Parameters:
     Type: String
     Description: Naam van de S3-bucket voor RDS-exports (zelfde als cloudshirt-s3)
 
+  LambdaRoleArn:
+    Type: String
+    Description: ARN van een bestaande IAM-role voor Lambda (bijv. AWS Academy LabRole)
+
   LambdaReservedConcurrency:
     Type: Number
     Default: 5
@@ -42,40 +46,6 @@ Resources:
       KmsMasterKeyId: alias/aws/sqs
 
   # -------------------------------------------------------------------------
-  # IAM Role — minimale rechten voor de Lambda-functie
-  # -------------------------------------------------------------------------
-  ExportMonitorRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-      Policies:
-        - PolicyName: ExportMonitorPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Sid: S3ReadExport
-                Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !Sub arn:aws:s3:::${BucketName}
-                  - !Sub arn:aws:s3:::${BucketName}/*
-              - Sid: SnsPublish
-                Effect: Allow
-                Action: sns:Publish
-                Resource: !Ref ExportNotificationTopic
-
-  # -------------------------------------------------------------------------
   # Lambda SG — alleen egress, geen inkomende poorten nodig
   # -------------------------------------------------------------------------
   ExportMonitorSecurityGroup:
@@ -90,11 +60,6 @@ Resources:
 
   # -------------------------------------------------------------------------
   # Lambda Function — controleert of orders.csv vandaag bijgewerkt is
-  #
-  # Logica:
-  #   1. Head-object op exports/orders.csv in S3
-  #   2. Vergelijk LastModified met de datum van vandaag (UTC)
-  #   3. Publiceer succes- of foutmelding naar SNS
   # -------------------------------------------------------------------------
   ExportMonitorFunction:
     Type: AWS::Lambda::Function
@@ -104,7 +69,7 @@ Resources:
         en stuurt een SNS-melding met de status.
       Runtime: python3.12
       Handler: index.handler
-      Role: !GetAtt ExportMonitorRole.Arn
+      Role: !Ref LambdaRoleArn
       Timeout: 30
       KmsKeyArn: alias/aws/lambda
       ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
@@ -179,7 +144,6 @@ Resources:
 
   # -------------------------------------------------------------------------
   # EventBridge Rule — dagelijkse trigger om 03:00 UTC
-  # (één uur na de export-cron op 02:00 UTC, genoeg marge)
   # -------------------------------------------------------------------------
   ExportMonitorSchedule:
     Type: AWS::Events::Rule

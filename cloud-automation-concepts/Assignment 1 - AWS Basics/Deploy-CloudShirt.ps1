@@ -157,6 +157,10 @@ if ([string]::IsNullOrWhiteSpace($BucketName)) {
 
 Write-Output "S3-bucketnaam: $BucketName"
 
+# AWS Academy levert meestal een bestaande LabRole die de Lambda kan gebruiken
+$LambdaRoleArn = "arn:aws:iam::$AccountId:role/LabRole"
+Write-Output "Lambda-role ARN: $LambdaRoleArn"
+
 # ---------------------------------------------------------------------------
 # Hulpfunctie: deploy een CloudFormation-stack
 #
@@ -177,6 +181,9 @@ function Invoke-StackDeployment {
 
         # Voeg de S3-bucketnaam toe als stack-parameter
         [switch]$IncludeBucket,
+
+        # Voeg de Lambda-role-ARN toe als stack-parameter
+        [switch]$IncludeLambdaRole,
 
         # Voeg de ALB logbucket-parameter toe (alleen voor loadbalancer-stack)
         [switch]$IncludeLogBucket
@@ -211,6 +218,10 @@ function Invoke-StackDeployment {
 
     if ($IncludeBucket) {
         $Params += "ParameterKey=BucketName,ParameterValue=$BucketName"
+    }
+
+    if ($IncludeLambdaRole) {
+        $Params += "ParameterKey=LambdaRoleArn,ParameterValue=$LambdaRoleArn"
     }
 
     if ($IncludeLogBucket) {
@@ -325,7 +336,7 @@ Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-a
 #    Afhankelijk van cloudshirt-s3 (bucket moet bestaan voor de Lambda wordt aangemaakt)
 Write-Output "Stap 7/7 - Serverless export-monitor (REQ-08)"
 Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
-    -IncludeBucket
+    -IncludeBucket -IncludeLambdaRole
 
 # ---------------------------------------------------------------------------
 # Klaar
