@@ -33,6 +33,10 @@ resource "google_container_cluster" "primary" {
       cidr_block   = "10.0.0.0/16"
       display_name = "vpc-internal"
     }
+    cidr_blocks {
+      cidr_block   = "0.0.0.0/0"
+      display_name = "allow-all-temp"
+    }
   }
 
   master_auth {

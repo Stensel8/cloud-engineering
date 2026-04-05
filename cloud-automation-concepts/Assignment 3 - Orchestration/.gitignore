@@ -4,6 +4,8 @@
 terraform.tfvars
 .terraform/
 *.tfplan
-
+*.hcl
+*.info
+*.terraform.lock.hcl
 # GCP service account keys
 *.json
