@@ -54,7 +54,7 @@ jobs:
         run: |
           set +e
           # Gebruik find zodat cfn-lint geen glob-problemen heeft met **
-          mapfile -d '' files < <(find cloud-automation-concepts -type f \( -name "*.yaml" -o -name "*.yml" \) ! -path "*/ansible/*" -print0)
+          mapfile -d '' files < <(find cloud-automation-concepts -type f \( -name "*.yaml" -o -name "*.yml" \) ! -path "*/ansible/*" ! -path "*/config/*" -print0)
 
           if [ ${#files[@]} -eq 0 ]; then
             echo "Geen CloudFormation-templates gevonden."

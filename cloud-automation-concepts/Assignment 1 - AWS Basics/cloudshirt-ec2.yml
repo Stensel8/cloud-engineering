@@ -86,6 +86,7 @@ Resources:
               export AWS_SECRET_ACCESS_KEY=${SecretKey}
               export AWS_SESSION_TOKEN=${SessionToken}
               export AWS_DEFAULT_REGION=us-east-1
+              export AWS_ACCOUNT_ID=${AccountId}
 
               # ── RDS-credentials ophalen uit Secrets Manager ───────────────────────────────
               SECRET=$(aws secretsmanager get-secret-value \
@@ -98,7 +99,7 @@ Resources:
               # --allowerasing: voorkomt curl/curl-minimal conflict op Amazon Linux 2023
               dnf install -y --allowerasing \
                   gcc git unzip curl libicu cronie \
-                  amazon-efs-utils postgresql15 \
+                  amazon-efs-utils postgresql17 \
                   unixODBC unixODBC-devel
 
               # ── .NET 10 installeren ───────────────────────────────────────────────────────

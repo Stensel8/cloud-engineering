@@ -16,7 +16,7 @@
 #   0 2 * * * ec2-user /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1
 #
 # Vereisten op de EC2-instance:
-#   - psql (postgresql15) geïnstalleerd
+#   - psql (postgresql17) geïnstalleerd
 #   - AWS CLI geconfigureerd
 #   - EFS gemount op /mnt/efs
 #   - Bestanden op EFS: rds-endpoint, s3-name, db-password
