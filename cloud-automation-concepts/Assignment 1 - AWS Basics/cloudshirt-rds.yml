@@ -44,7 +44,7 @@ Resources:
         SecretStringTemplate: '{"username":"csadmin"}'
         GenerateStringKey: password
         PasswordLength: 20
-        ExcludeCharacters: '"@/\\;'  # puntkomma breekt ADO.NET/Npgsql connection strings
+        ExcludeCharacters: "\"@/\\;'"  # ; en ' breken ADO.NET/Npgsql connection strings
 
   # ── RDS PostgreSQL-instance ───────────────────────────────────────────────
   # PostgreSQL 16 — de database die de CloudShirt-applicatie verwacht.

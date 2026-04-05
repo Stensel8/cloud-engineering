@@ -26,6 +26,15 @@ Resources:
       UnhealthyThresholdCount: 10
       Matcher:
         HttpCode: "200-399"
+      # Sticky sessions: elke browser blijft op dezelfde instance zodat
+      # ASP.NET Core Data Protection-sleutels en anti-forgery-tokens kloppen.
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: "true"
+        - Key: stickiness.type
+          Value: lb_cookie
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: "86400"
       Targets:
         - Id: !ImportValue cloudshirt-ec2:Instance1
         - Id: !ImportValue cloudshirt-ec2:Instance2

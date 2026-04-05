@@ -150,8 +150,8 @@ Resources:
               {
                   echo "UseOnlyInMemoryDatabase=false"
                   echo "DatabaseProvider=postgres"
-                  echo "ConnectionStrings__CatalogConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_catalog;Username=$DBUsername;Password='$DBPassword';"
-                  echo "ConnectionStrings__IdentityConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_identity;Username=$DBUsername;Password='$DBPassword';"
+                  echo "ConnectionStrings__CatalogConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_catalog;Username=$DBUsername;Password=\"$DBPassword\";"
+                  echo "ConnectionStrings__IdentityConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_identity;Username=$DBUsername;Password=\"$DBPassword\";"
                   echo "baseUrls__webBase=http://localhost:5000/"
                   echo "baseUrls__apiBase=http://localhost:5000/api/"
               } > /opt/cloudshirt/.env
