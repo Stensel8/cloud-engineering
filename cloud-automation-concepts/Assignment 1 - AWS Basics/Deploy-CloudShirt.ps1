@@ -308,32 +308,51 @@ Write-Output "Stap 1/7 - Netwerk"
 Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
 
 # 2. Gedeelde services (afhankelijk van het netwerk)
-Write-Output "Stap 2/7 - Gedeelde services (EFS, ELK, RDS)"
+#    S3 staat hier ook: de bucket moet bestaan voordat config-bestanden geupload worden
+#    en voordat EC2 ze ophaalt via 'aws s3 cp'.
+Write-Output "Stap 2/7 - Gedeelde services (EFS, ELK, RDS, S3)"
 Invoke-StackDeployment -StackName "cloudshirt-efs" -TemplateFile ".\cloudshirt-efs.yml"
 Invoke-StackDeployment -StackName "cloudshirt-elk" -TemplateFile ".\cloudshirt-elk.yml"
 Invoke-StackDeployment -StackName "cloudshirt-rds" -TemplateFile ".\cloudshirt-rds.yml"
+Invoke-StackDeployment -StackName "cloudshirt-s3"  -TemplateFile ".\cloudshirt-s3.yml" `
+    -IncludeBucket
 
-# 3. EC2-webservers (afhankelijk van EFS, ELK en RDS voor de installatie via UserData)
+# 2b. Config-bestanden uploaden naar S3
+#     EC2 en ASG-instances halen deze op via 'aws s3 cp' in hun UserData.
+#     Zo staan ze als losse bestanden in Git, zonder heredoc-problemen in de YAML.
+Write-Section "Config-bestanden uploaden naar S3"
+$ConfigDir = Join-Path $PSScriptRoot "config"
+
+foreach ($ConfigFile in @("nginx-cloudshirt.conf", "cloudshirt.service", "filebeat-system.yml", "elastic.repo")) {
+    $LocalPath = Join-Path $ConfigDir $ConfigFile
+    if (-not (Test-Path $LocalPath)) {
+        Write-Output "FOUT: config-bestand niet gevonden: $LocalPath"
+        exit 1
+    }
+    aws s3 cp $LocalPath "s3://$BucketName/config/$ConfigFile" --region $Region
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output "FOUT: uploaden van '$ConfigFile' naar S3 mislukt."
+        exit 1
+    }
+    Write-Output "  Geupload: config/$ConfigFile"
+}
+
+# 3. EC2-webservers (afhankelijk van EFS, ELK, RDS en S3 met config-bestanden)
 Write-Output "Stap 3/7 - EC2-webservers"
 Invoke-StackDeployment -StackName "cloudshirt-ec2" -TemplateFile ".\cloudshirt-ec2.yml" `
     -IncludeCredentials -IncludeBucket
 
-# 4. S3-bucket voor exports en ALB access logs
-Write-Output "Stap 4/7 - S3-bucket"
-Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3.yml" `
-    -IncludeBucket
-
-# 5. Load Balancer (afhankelijk van de EC2-instances als target)
-Write-Output "Stap 5/7 - Load Balancer"
+# 4. Load Balancer (afhankelijk van de EC2-instances als target)
+Write-Output "Stap 4/7 - Load Balancer"
 Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml"
 
-# 6. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
-Write-Output "Stap 6/7 - Auto Scaling Group"
+# 5. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
+Write-Output "Stap 5/7 - Auto Scaling Group"
 Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
     -IncludeCredentials -IncludeBucket
 
-# 7. Lambda export-monitor (REQ-08): afhankelijk van cloudshirt-s3 (bucket moet bestaan)
-Write-Output "Stap 7/7 - Lambda export-monitor"
+# 6. Lambda export-monitor (REQ-08): afhankelijk van cloudshirt-s3 (bucket moet bestaan)
+Write-Output "Stap 6/7 - Lambda export-monitor"
 Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
     -IncludeBucket -IncludeLambdaRole
 
@@ -405,8 +424,7 @@ if (-not [string]::IsNullOrWhiteSpace($LambdaName)) {
 
 Write-Output ""
 Write-Output "Volgende stappen:"
-Write-Output "  1. Wacht 15-20 minuten: de EC2-instances bouwen de .NET app nog."
-Write-Output "     Daarna wordt de URL beschikbaar. Herlaad de pagina na het wachten."
+Write-Output "  1. Wacht 15-20 minuten totdat de EC2-instances de .NET-app hebben gebouwd."
 Write-Output "  2. Open de applicatie-URL hierboven in je browser."
 Write-Output "  3. Controleer Kibana op http://<ELK-IP>:5601 voor logs."
 Write-Output "  4. Bekijk CloudWatch Logs van de Lambda voor export-monitor resultaten."
