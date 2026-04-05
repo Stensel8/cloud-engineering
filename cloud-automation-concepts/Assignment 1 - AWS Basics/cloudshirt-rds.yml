@@ -56,7 +56,7 @@ Resources:
     Properties:
       DBInstanceIdentifier: cloudshirt-db
       Engine: postgres
-      EngineVersion: "17"
+      EngineVersion: "18"
       DBInstanceClass: db.t3.micro
       AllocatedStorage: !Ref DBAllocatedStorage
       # Initiële database; de app maakt eshop_catalog en eshop_identity zelf aan

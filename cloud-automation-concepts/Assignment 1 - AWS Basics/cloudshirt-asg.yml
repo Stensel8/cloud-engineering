@@ -95,7 +95,7 @@ Resources:
               # --allowerasing: voorkomt curl/curl-minimal conflict op Amazon Linux 2023
               dnf install -y --allowerasing \
                   gcc git unzip curl libicu cronie \
-                  amazon-efs-utils postgresql17 \
+                  amazon-efs-utils postgresql18 \
                   unixODBC unixODBC-devel
 
               # ── .NET 10 installeren ───────────────────────────────────────────────────────
