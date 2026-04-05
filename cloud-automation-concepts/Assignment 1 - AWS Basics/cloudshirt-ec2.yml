@@ -179,11 +179,18 @@ Resources:
               # DatabaseProvider en UseOnlyInMemoryDatabase sturen de app naar
               # PostgreSQL; de databases worden automatisch aangemaakt bij opstart
               # via EF Core EnsureCreatedAsync().
+              # baseUrls__webBase en baseUrls__apiBase overschrijven de standaard
+              # appsettings.json-waarden (https://localhost:44315 / :5099) die in
+              # Production niet bestaan. Zonder deze override probeert Blazor
+              # server-side rendering een HTTPS-verbinding te maken met zichzelf
+              # en gooit een 500-fout op elke pagina.
               printf '%s\n' \
                 "UseOnlyInMemoryDatabase=false" \
                 "DatabaseProvider=postgres" \
                 "ConnectionStrings__CatalogConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_catalog;Username=$DBUsername;Password=$DBPassword;" \
                 "ConnectionStrings__IdentityConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_identity;Username=$DBUsername;Password=$DBPassword;" \
+                "baseUrls__webBase=http://localhost:5000/" \
+                "baseUrls__apiBase=http://localhost:5000/api/" \
                 > /opt/cloudshirt/.env
 
               sudo -u ec2-user bash -lc "
