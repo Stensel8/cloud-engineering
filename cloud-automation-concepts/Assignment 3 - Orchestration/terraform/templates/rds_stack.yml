@@ -10,19 +10,6 @@ Parameters:
     Description: The size of the database (Gb)
 
 Resources:
-  RDSMonitoringRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: monitoring.rds.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole
-
   CloudShirtDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -75,8 +62,7 @@ Resources:
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:password}}"
       LicenseModel: license-included
       StorageEncrypted: true
-      MonitoringInterval: 60
-      MonitoringRoleArn: !GetAtt RDSMonitoringRole.Arn
+      MonitoringInterval: 0
       VPCSecurityGroups:
         - !ImportValue base-stack:rdsSG
       DBSubnetGroupName: !Ref CloudShirtDBSubnetGroup

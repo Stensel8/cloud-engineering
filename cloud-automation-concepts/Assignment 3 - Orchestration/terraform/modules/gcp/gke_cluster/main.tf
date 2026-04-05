@@ -4,9 +4,15 @@ resource "google_container_cluster" "primary" {
   network     = var.vpc_id
   subnetwork  = var.subnet_id
 
-  remove_default_node_pool  = true
-  initial_node_count        = 1
+  remove_default_node_pool    = true
+  initial_node_count          = 1
   enable_intranode_visibility = true
+
+  node_config {
+    disk_type    = "pd-standard"
+    disk_size_gb = 30
+    machine_type = "e2-medium"
+  }
 
   ip_allocation_policy {}
 
@@ -54,10 +60,6 @@ resource "google_container_cluster" "primary" {
     workload_pool = "${data.google_client_config.current.project}.svc.id.goog"
   }
 
-  authenticator_groups_config {
-    security_group = "gke-security-groups@${data.google_client_config.current.project}.iam.gserviceaccount.com"
-  }
-
   resource_labels = {
     project     = "cloudshirt"
     environment = "prod"
@@ -81,6 +83,7 @@ resource "google_container_node_pool" "primary_nodes" {
   node_config {
     machine_type = "e2-medium"
     disk_size_gb = 30
+    disk_type    = "pd-standard"
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]

@@ -107,17 +107,13 @@ Resources:
           cd "/home/ec2-user"
           echo "Current directory: $(pwd)"
 
-          git clone https://github.com/Stensel8/CloudShirt-1.git
+          git clone https://github.com/Stensel8/CloudShirt.git
 
-          cd "/home/ec2-user/CloudShirt-1"
+          cd "/home/ec2-user/CloudShirt"
           echo "Current directory: $(pwd)"
 
-          # BASH SCRIPT VOOR ENDPOINT
-          chmod +x endpointshetter-2.sh
-          ./endpointshetter-2.sh
-
           # Build en push Docker images naar Google Artifact Registry
-          cd "/home/ec2-user/CloudShirt-1"
+          cd "/home/ec2-user/CloudShirt"
 
           docker build -t ${GCPRegion}-docker.pkg.dev/${GCPProjectID}/${GCPRepo}/eshopwebmvc:latest -f src/Web/Dockerfile .
           docker push ${GCPRegion}-docker.pkg.dev/${GCPProjectID}/${GCPRepo}/eshopwebmvc:latest

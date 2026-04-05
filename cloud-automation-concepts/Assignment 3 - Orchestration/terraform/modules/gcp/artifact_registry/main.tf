@@ -20,7 +20,6 @@ resource "google_artifact_registry_repository" "cloudshirt_repo" {
   repository_id = var.gcp_repo_name
   description   = "Artifact Registry for CloudShirt images"
   format        = "DOCKER"
-  kms_key_name  = google_kms_crypto_key.artifact_key.id
 }
 
 output "artifact_repo_url" {
