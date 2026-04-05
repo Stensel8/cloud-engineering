@@ -1,8 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  CloudShirt S3-stack (REQ-07).
-  Voorziet in een S3-bucket voor RDS-exports van de ordertabel.
-  Publieke toegang is volledig geblokkeerd.
+  CloudShirt S3 (REQ-07). Bucket voor dagelijkse order-exports.
+  Publieke toegang geblokkeerd.
 
 # ---------------------------------------------------------------------------
 # Parameters

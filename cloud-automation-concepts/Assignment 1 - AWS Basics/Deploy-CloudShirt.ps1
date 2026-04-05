@@ -11,14 +11,14 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. base-stack              -- VPC, subnetten, gateways
+      1. cloudshirt-network     -- VPC, subnetten, gateways, security groups
       2. cloudshirt-efs         -- Elastic File System
          cloudshirt-elk         -- ELK monitoring stack
-         cloudshirt-rds         -- RDS SQL Server database
+         cloudshirt-rds         -- RDS PostgreSQL database
       3. cloudshirt-ec2         -- EC2-webservers
-      4. cloudshirt-lb          -- Application Load Balancer
-      5. cloudshirt-asg         -- Auto Scaling Group
-      6. cloudshirt-s3          -- S3-bucket voor exports
+      4. cloudshirt-s3          -- S3-bucket voor exports
+      5. cloudshirt-lb          -- Application Load Balancer
+      6. cloudshirt-asg         -- Auto Scaling Group
       7. cloudshirt-serverless  -- Lambda export-monitor (REQ-08)
 
 .PARAMETER Region
@@ -158,7 +158,7 @@ if ([string]::IsNullOrWhiteSpace($BucketName)) {
 Write-Output "S3-bucketnaam: $BucketName"
 
 # AWS Academy levert meestal een bestaande LabRole die de Lambda kan gebruiken
-$LambdaRoleArn = "arn:aws:iam::$AccountId:role/LabRole"
+$LambdaRoleArn = "arn:aws:iam::${AccountId}:role/LabRole"
 Write-Output "Lambda-role ARN: $LambdaRoleArn"
 
 # ---------------------------------------------------------------------------
@@ -332,9 +332,8 @@ Write-Output "Stap 6/7 - Auto Scaling Group"
 Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
     -IncludeCredentials -IncludeBucket
 
-# 7. Serverless Lambda export-monitor (REQ-08)
-#    Afhankelijk van cloudshirt-s3 (bucket moet bestaan voor de Lambda wordt aangemaakt)
-Write-Output "Stap 7/7 - Serverless export-monitor (REQ-08)"
+# 7. Lambda export-monitor (REQ-08): afhankelijk van cloudshirt-s3 (bucket moet bestaan)
+Write-Output "Stap 7/7 - Lambda export-monitor"
 Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
     -IncludeBucket -IncludeLambdaRole
 
@@ -346,17 +345,71 @@ Write-Output "Alle stacks zijn succesvol gedeployt."
 Write-Output ""
 Write-Output "Vereisten afgevinkt:"
 Write-Output "  REQ-01  HA over meerdere AZ's met ALB"
-Write-Output "  REQ-02  Auto Scaling spike-traffic (6-8 PM ET)"
-Write-Output "  REQ-03  EFS voor gedeelde logbestanden"
-Write-Output "  REQ-04  RDS SQL Server via CloudFormation (IaC)"
-Write-Output "  REQ-05  ELK Stack v8.x monitoring"
-Write-Output "  REQ-06  Filebeat -> Logstash (optioneel, aanwezig)"
-Write-Output "  REQ-07  Dagelijkse order-export naar S3 (bcp cron)"
+Write-Output "  REQ-02  Auto Scaling spike-traffic (18-20 ET, scheduled)"
+Write-Output "  REQ-03  EFS voor gedeelde logbestanden (nginx-logs)"
+Write-Output "  REQ-04  RDS PostgreSQL 16 via CloudFormation (IaC)"
+Write-Output "  REQ-05  ELK Stack v8.x (Elasticsearch, Logstash, Kibana)"
+Write-Output "  REQ-06  Filebeat -> Logstash centrale logverwerking"
+Write-Output "  REQ-07  Dagelijkse psql order-export naar S3 (cron 02:00)"
 Write-Output "  REQ-08  Serverless Lambda export-monitor via EventBridge"
 Write-Output ""
+
+# ALB-URL ophalen en tonen
+$AlbDns = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-lb" `
+    --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDNSName'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
+    Write-Output "CloudShirt applicatie-URL:"
+    Write-Output "  http://$AlbDns"
+} else {
+    Write-Output "Haal de ALB-URL op via:"
+    Write-Output "  aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
+}
+
+# Target health tonen voor snelle troubleshooting
+$TargetGroupArn = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-lb" `
+    --query "Stacks[0].Outputs[?OutputKey=='WebTargetGroup'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
+    Write-Output ""
+    Write-Output "ALB target health:"
+    aws elbv2 describe-target-health `
+        --target-group-arn $TargetGroupArn `
+        --query "TargetHealthDescriptions[].{Instance:Target.Id,Status:TargetHealth.State,Reden:TargetHealth.Reason}" `
+        --output table
+}
+
+# Lambda-functienaam tonen
+$LambdaName = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-serverless" `
+    --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionName'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($LambdaName)) {
+    $SnsArn = aws cloudformation describe-stacks `
+        --stack-name "cloudshirt-serverless" `
+        --query "Stacks[0].Outputs[?OutputKey=='SNSTopicArn'].OutputValue" `
+        --output text 2>$null
+
+    Write-Output ""
+    Write-Output "Serverless Lambda (REQ-08):"
+    Write-Output "  Functienaam : $LambdaName"
+    Write-Output "  SNS-topic   : $SnsArn"
+    Write-Output "  Logs        : aws logs tail /aws/lambda/$LambdaName --follow"
+    Write-Output "  Testen      : aws lambda invoke --function-name $LambdaName /tmp/lambda-out.json; cat /tmp/lambda-out.json"
+}
+
+Write-Output ""
 Write-Output "Volgende stappen:"
-Write-Output "  1. Haal de ALB-URL op:"
-Write-Output "     aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
-Write-Output "  2. Open de URL in je browser om de CloudShirt-applicatie te testen."
-Write-Output "  3. Controleer Kibana (poort 5601 op de ELK-server) voor logs."
-Write-Output "  4. Controleer CloudWatch Logs voor de Lambda export-monitor resultaten."
+Write-Output "  1. Wacht 15-20 minuten: de EC2-instances bouwen de .NET app nog."
+Write-Output "     Daarna wordt de URL beschikbaar. Herlaad de pagina na het wachten."
+Write-Output "  2. Open de applicatie-URL hierboven in je browser."
+Write-Output "  3. Controleer Kibana op http://<ELK-IP>:5601 voor logs."
+Write-Output "  4. Bekijk CloudWatch Logs van de Lambda voor export-monitor resultaten."
+Write-Output ""
+Write-Output "Logs bekijken op een instance (vervang INSTANCE_ID):"
+Write-Output "  aws ec2 get-console-output --instance-id INSTANCE_ID --output text"

@@ -1,9 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt EFS-stack (REQ-03).
-  Voorziet in een versleuteld Elastic File System voor gedeelde opslag van
-  webserver-logbestanden. Mount targets in beide publieke subnets zorgen
-  dat alle EC2-instances en ASG-nodes dezelfde mappen kunnen benaderen.
+  CloudShirt EFS (REQ-03). Gedeeld bestandssysteem voor logs,
+  mount targets in beide AZ's.
 
 # ---------------------------------------------------------------------------
 # Resources

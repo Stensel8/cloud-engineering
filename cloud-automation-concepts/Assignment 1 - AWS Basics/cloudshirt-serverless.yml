@@ -1,8 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt serverless stack (REQ-08).
-  Lambda controleert dagelijks om 03:00 UTC of de order-export naar S3 is
-  geschreven en stuurt een SNS-melding. Getriggerd via EventBridge.
+  CloudShirt Serverless (REQ-08). Lambda controleert dagelijks de S3
+  order-export en stuurt een SNS-melding via EventBridge.
 
 Parameters:
 
@@ -115,11 +114,17 @@ Resources:
 Outputs:
 
   LambdaFunctionName:
+    Description: Naam van de Lambda-functie
     Value: !Ref ExportMonitorFunction
     Export:
       Name: !Sub "${AWS::StackName}:LambdaFunction"
 
   SNSTopicArn:
+    Description: ARN van het SNS-topic voor export-meldingen
     Value: !Ref ExportNotificationTopic
     Export:
       Name: !Sub "${AWS::StackName}:SNSTopic"
+
+  DLQUrl:
+    Description: URL van de SQS Dead Letter Queue
+    Value: !Ref ExportMonitorDLQ

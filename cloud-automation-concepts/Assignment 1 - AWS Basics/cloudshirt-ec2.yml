@@ -1,9 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt EC2-webservers — twee instances verdeeld over twee AZ's (REQ-01).
-  Beide instances starten vanuit dezelfde LaunchTemplate, zodat de configuratie
-  maar één keer gedefinieerd hoeft te worden.
-  Installeert: .NET 10, nginx, CloudShirt-applicatie, Filebeat en mssql-tools.
+  CloudShirt EC2-webservers (REQ-01). Twee instances over twee AZ's via
+  een LaunchTemplate. Installeert .NET 10, nginx, CloudShirt en Filebeat.
 
 # ---------------------------------------------------------------------------
 # Parameters
@@ -26,8 +24,10 @@ Parameters:
 
   InstanceType:
     Type: String
-    Default: t3.small
-    Description: EC2 instance type (t3.small aanbevolen voor .NET 10)
+    Default: t3.medium
+    # t3.small (2 GB) knalt out-of-memory tijdens de dotnet-build + filebeat-installatie.
+    # t3.medium (4 GB) is het minimum voor deze stack.
+    Description: EC2 instance type (minimaal t3.medium vanwege dotnet-build + filebeat geheugengebruik)
 
   BucketName:
     Type: String
@@ -93,9 +93,10 @@ Resources:
               DBUsername=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['username'])")
               DBPassword=$(echo "$SECRET" | python3 -c "import sys,json; print(json.load(sys.stdin)['password'])")
 
-              # ── Systeem bijwerken en basispakketten installeren ───────────
-              dnf update -y
-              dnf install -y gcc git unzip curl amazon-efs-utils unixODBC unixODBC-devel
+              # ── Basispakketten installeren ────────────────────────────────
+              # Geen volledige dnf update: curl/curl-minimal conflict op AL2023
+              # veroorzaakt anders een scriptfout (set -e) die alles afbreekt.
+              dnf install -y --allowerasing gcc git unzip curl libicu cronie amazon-efs-utils unixODBC unixODBC-devel
 
               # ── .NET 10 installeren via het officiële installatiescript ───
               # packages.microsoft.com heeft nog geen AL2023-repo voor .NET 10,
@@ -161,10 +162,27 @@ Resources:
 
               sudo -u ec2-user git clone --branch ${RepoBranch} ${RepoUrl} $APPROOT/src
 
-              # Verbindingsstrings aanpassen naar de RDS-instantie (REQ-04)
-              # Buiten bash -lc zodat $DBUsername/$DBPassword correct expanderen
-              sed -i "s|Server.*CatalogDb;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.CatalogDb;|" $APPROOT/src/src/Web/appsettings.json
-              sed -i "s|Server.*Identity;|Server=${RDSENDPOINT},1433;User ID=$DBUsername;Password=$DBPassword;Initial Catalog=Microsoft.eShopOnWeb.Identity;|" $APPROOT/src/src/Web/appsettings.json
+              # ── HTTPS-redirect uitschakelen ───────────────────────────────
+              # De app heeft UseHttpsRedirection() aan, maar onze ALB is HTTP-only
+              # (geen ACM-certificaat voor deze demo-omgeving). We verwijderen de
+              # redirect-regel uit de broncode voordat we bouwen, zodat de ALB
+              # health checks slagen en gebruikers de app gewoon via HTTP bereiken.
+              sed -i '/app\.UseHttpsRedirection/d' $APPROOT/src/src/Web/Program.cs
+
+              # ── PostgreSQL-verbindingsstrings schrijven naar .env (REQ-04) ──
+              # ASP.NET Core leest omgevingsvariabelen met dubbele underscore als
+              # geneste configuratiesleutels (ConnectionStrings__CatalogConnection
+              # overschrijft appsettings.json). Zo hoeven we de broncode niet aan
+              # te passen en staan credentials nooit in het configbestand zelf.
+              # DatabaseProvider en UseOnlyInMemoryDatabase sturen de app naar
+              # PostgreSQL; de databases worden automatisch aangemaakt bij opstart
+              # via EF Core EnsureCreatedAsync().
+              printf '%s\n' \
+                "UseOnlyInMemoryDatabase=false" \
+                "DatabaseProvider=postgres" \
+                "ConnectionStrings__CatalogConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_catalog;Username=$DBUsername;Password=$DBPassword;" \
+                "ConnectionStrings__IdentityConnection=Host=${RDSENDPOINT};Port=5432;Database=eshop_identity;Username=$DBUsername;Password=$DBPassword;" \
+                > /opt/cloudshirt/.env
 
               sudo -u ec2-user bash -lc "
                 set -e
@@ -172,6 +190,9 @@ Resources:
                 dotnet restore
                 dotnet publish -c Release -o $PUBLISH
               "
+
+              # Vrijgeven van geheugen dat de Roslyn-compiler (VBCSCompiler) gebruikt
+              dotnet build-server shutdown || true
 
               # ── Systemd-service aanmaken voor de .NET-applicatie ──────────
               # Systemd start de app automatisch bij reboot en herstart hem
@@ -191,6 +212,8 @@ Resources:
               User=ec2-user
               Environment=ASPNETCORE_ENVIRONMENT=Production
               Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
+              Environment=DOTNET_ROOT=/usr/share/dotnet
+              EnvironmentFile=/opt/cloudshirt/.env
 
               [Install]
               WantedBy=multi-user.target
@@ -245,15 +268,10 @@ Resources:
               systemctl enable filebeat
               systemctl restart filebeat
 
-              # ── mssql-tools installeren (bcp + sqlcmd voor REQ-07) ────────
-              # bcp wordt gebruikt door export-orders.sh om de ordertabel
-              # naar S3 te exporteren. AL2023 is RHEL 9-compatibel.
-              curl -sSL https://packages.microsoft.com/config/rhel/9/prod.repo \
-                -o /etc/yum.repos.d/mssql-release.repo
-              ACCEPT_EULA=Y dnf install -y msodbcsql18 mssql-tools18
-
-              echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' > /etc/profile.d/mssql-tools.sh
-              chmod +x /etc/profile.d/mssql-tools.sh
+              # ── PostgreSQL-clienttools installeren (psql voor REQ-07) ───────
+              # psql wordt gebruikt door export-orders.sh om de ordertabel
+              # via COPY naar een CSV te exporteren en naar S3 te uploaden.
+              dnf install -y postgresql15
 
               # ── Export-script downloaden van onze eigen repo ──────────────
               # Hierdoor is het script beschikbaar op elke instance die start,

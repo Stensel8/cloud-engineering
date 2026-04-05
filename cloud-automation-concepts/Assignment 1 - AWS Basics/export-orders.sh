@@ -2,7 +2,7 @@
 #
 # export-orders.sh
 # ----------------
-# Exporteert de ordertabel (dbo.Orders) uit de CloudShirt SQL Server-database
+# Exporteert de ordertabel uit de CloudShirt PostgreSQL-database
 # naar een CSV-bestand en uploadt dit naar de S3-bucket — maar alleen als er
 # iets veranderd is (efficiënte uploads).
 #
@@ -13,11 +13,10 @@
 #   ./export-orders.sh
 #
 # Automatisch uitvoeren (dagelijks om 02:00):
-#   Voeg toe aan crontab via: crontab -e
-#   0 2 * * * /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1
+#   0 2 * * * ec2-user /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1
 #
 # Vereisten op de EC2-instance:
-#   - bcp en sqlcmd (mssql-tools) geïnstalleerd
+#   - psql (postgresql15) geïnstalleerd
 #   - AWS CLI geconfigureerd
 #   - EFS gemount op /mnt/efs
 #   - Bestanden op EFS: rds-endpoint, s3-name, db-password
@@ -36,13 +35,10 @@ readonly PASSWORD_FILE="$EFS_DIR/db-password"   # wachtwoord opgeslagen op EFS, 
 readonly EXPORT_CSV="/tmp/orders.csv"
 readonly TEMP_CSV="/tmp/orders_tmp.csv"
 
-# Database-instellingen
+# Database-instellingen (komen overeen met de verbindingsstrings in /opt/cloudshirt/.env)
 readonly DB_USER="csadmin"
-readonly DB_NAME="Microsoft.eShopOnWeb.CatalogDb"
-readonly DB_TABLE="dbo.Orders"
-
-# mssql-tools toevoegen aan het pad
-export PATH="$PATH:/opt/mssql-tools/bin"
+readonly DB_NAME="eshop_catalog"
+readonly DB_PORT="5432"
 
 # ---------------------------------------------------------------------------
 # Hulpfunctie: foutmelding tonen en afsluiten
@@ -73,23 +69,21 @@ echo "S3-bucket    : $S3_BUCKET"
 # ---------------------------------------------------------------------------
 # Stap 2: exporteer de ordertabel naar een tijdelijk CSV-bestand
 #
-# bcp-opties:
-#   out         - exporteer uit de database (in = importeren)
-#   -c          - tekenmodus (geen binair)
-#   -t,         - komma als kolomscheidingsteken
-#   -b 10000    - batchgrootte (vermijdt time-outs bij grote tabellen)
+# psql COPY exporteert de tabel direct als CSV inclusief koptekstrij.
+# PGPASSWORD wordt als omgevingsvariabele meegegeven zodat het wachtwoord
+# niet zichtbaar is in de proceslijst.
 # ---------------------------------------------------------------------------
 echo ""
-echo "Exporteren: $DB_TABLE uit $DB_NAME..."
+echo "Exporteren: Orders uit $DB_NAME..."
 
-bcp "$DB_TABLE" out "$TEMP_CSV" \
-    -c -t, \
-    -S "$DB_ENDPOINT" \
-    -d "$DB_NAME" \
-    -U "$DB_USER" \
-    -P "$DB_PASSWORD" \
-    -b 10000 \
-    || fail "bcp-export mislukt. Controleer de verbinding met de database."
+PGPASSWORD="$DB_PASSWORD" psql \
+    --host="$DB_ENDPOINT" \
+    --port="$DB_PORT" \
+    --username="$DB_USER" \
+    --dbname="$DB_NAME" \
+    --no-password \
+    --command="\COPY \"Orders\" TO '$TEMP_CSV' WITH (FORMAT CSV, HEADER true)" \
+    || fail "psql-export mislukt. Controleer de verbinding met de database."
 
 # ---------------------------------------------------------------------------
 # Stap 3: vergelijk met het vorige exportbestand

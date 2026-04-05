@@ -1,8 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt Application Load Balancer-stack (REQ-01).
-  Verdeelt inkomend verkeer over de webserver-instances in twee AZ's
-  via één URL.
+  CloudShirt ALB (REQ-01). Verdeelt verkeer over webservers in twee AZ's.
 
 # ---------------------------------------------------------------------------
 # Resources
@@ -17,7 +15,17 @@ Resources:
       Protocol: HTTP
       Port: 80
       TargetType: instance
+      # ALB accepteert codes 200-399. Zodra de app draait en de DB bereikbaar
+      # is, retourneert de homepagina 200. HealthyThresholdCount=2 zorgt dat
+      # de instance snel als healthy wordt gemarkeerd zodra de app klaar is.
+      # UnhealthyThresholdCount=10 geeft de instance 5 minuten speling.
       HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 10
+      Matcher:
+        HttpCode: "200-399"
       Targets:
         - Id: !ImportValue cloudshirt-ec2:Instance1
         - Id: !ImportValue cloudshirt-ec2:Instance2
