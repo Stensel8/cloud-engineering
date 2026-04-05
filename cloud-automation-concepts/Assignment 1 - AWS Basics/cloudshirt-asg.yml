@@ -66,6 +66,8 @@ Resources:
         InstanceType: !Ref InstanceType
         KeyName: !Ref KeyName
         ImageId: ami-0190ba1cb5ab4e9e8   # Amazon Linux 2023 AMI (64-bit x86)
+        IamInstanceProfile:
+          Name: LabInstanceProfile   # Vereist voor SSM Session Manager
         SecurityGroupIds:
           - !ImportValue cloudshirt-network:InstanceSG
         MetadataOptions:

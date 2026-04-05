@@ -77,6 +77,7 @@ Resources:
       ImageId: ami-0190ba1cb5ab4e9e8   # Amazon Linux 2023 AMI (64-bit x86)
       InstanceType: t3.large
       KeyName: !Ref KeyName
+      IamInstanceProfile: LabInstanceProfile   # Vereist voor SSM Session Manager
       SubnetId: !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       SecurityGroupIds:
         - !Ref ELKSecurityGroup
