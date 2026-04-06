@@ -49,7 +49,7 @@ rewrite_links() {
   LINK_BASE="${GITHUB_BASE}/${subdir}" perl -pe '
     my $base = $ENV{LINK_BASE};
     # Herschrijf alleen relatieve links (niet http(s)://, #ankers, mailto:)
-    s|\]\((?!https?://|#|mailto:)([^)]+)\)|]($base/$1)|g
+    s{\]\((?!https?://|#|mailto:)([^)]+)\)}{]($base/$1)}g
   '
 }
 
