@@ -19,16 +19,13 @@
 
     Opmerking: IAM wordt niet uitgerold via een aparte stack. De LabInstanceProfile
     is een vooraf aangemaakte rol van AWS Academy die direct wordt gebruikt.
+    Verbinding met instances gaat via SSM Session Manager.
 
 .PARAMETER Region
     AWS-regio. Standaard: us-east-1 (vereist door AWS Academy).
 
-.PARAMETER KeyName
-    Naam van het EC2 Key Pair voor SSH-toegang. Wordt gevraagd als niet opgegeven.
-
 .EXAMPLE
     .\Deploy-DockerSwarm.ps1
-    .\Deploy-DockerSwarm.ps1 -KeyName "mijn-keypair"
 
 .NOTES
     Vereisten:
@@ -39,8 +36,7 @@
 
 [CmdletBinding()]
 param (
-    [string]$Region  = "us-east-1",
-    [string]$KeyName = ""
+    [string]$Region = "us-east-1"
 )
 
 Set-StrictMode -Version Latest
@@ -92,6 +88,7 @@ if (-not (Test-Path $AwsFile)) {
     exit 1
 }
 
+# Laad de sleutel-waardeparen uit het bestand
 $AwsData = @{}
 Get-Content $AwsFile | ForEach-Object {
     if ($_ -match '^\s*([^#][^=]+)\s*=\s*(.+)\s*$') {
@@ -99,6 +96,7 @@ Get-Content $AwsFile | ForEach-Object {
     }
 }
 
+# Controleer of alle vereiste sleutels aanwezig zijn
 foreach ($RequiredKey in @('aws_access_key_id', 'aws_secret_access_key', 'aws_session_token')) {
     if (-not $AwsData.ContainsKey($RequiredKey)) {
         Write-Output "FOUT: sleutel '$RequiredKey' ontbreekt in aws.txt"
@@ -116,6 +114,7 @@ $env:AWS_SECRET_ACCESS_KEY = $AwsData['aws_secret_access_key']
 $env:AWS_SESSION_TOKEN     = $AwsData['aws_session_token']
 $env:AWS_DEFAULT_REGION    = $Region
 
+# Valideer credentials door de accountidentiteit op te halen
 $null = aws sts get-caller-identity 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Output "FOUT: AWS-credentials zijn ongeldig of verlopen."
@@ -126,21 +125,6 @@ if ($LASTEXITCODE -ne 0) {
 Write-Output "Credentials zijn geldig."
 
 # ---------------------------------------------------------------------------
-# Stap 4: benodigde invoerwaarden ophalen
-# ---------------------------------------------------------------------------
-Write-Section "Invoer verzamelen"
-
-if ([string]::IsNullOrWhiteSpace($KeyName)) {
-    $KeyName = Read-Host "Geef de naam van je EC2 Key Pair (Enter = geen, verbinden via SSM)"
-}
-
-if ([string]::IsNullOrWhiteSpace($KeyName)) {
-    Write-Output "Geen Key Pair opgegeven - verbinding via SSM Session Manager."
-} else {
-    Write-Output "Key Pair: $KeyName"
-}
-
-# ---------------------------------------------------------------------------
 # Hulpfunctie: deploy een CloudFormation-stack
 #
 # Maakt de stack aan als hij nog niet bestaat; werkt hem bij als hij al bestaat.
@@ -149,19 +133,17 @@ if ([string]::IsNullOrWhiteSpace($KeyName)) {
 function Invoke-StackDeployment {
     [CmdletBinding()]
     param (
-        # Naam van de CloudFormation-stack
+        # Naam van de CloudFormation-stack (bijv. "cloudshirt-swarm-network")
         [Parameter(Mandatory)][string]$StackName,
 
         # Pad naar het CloudFormation-templatebestand
-        [Parameter(Mandatory)][string]$TemplateFile,
-
-        # Extra stack-parameters als array van "ParameterKey=...,ParameterValue=..." strings
-        [string[]]$Params = @()
+        [Parameter(Mandatory)][string]$TemplateFile
     )
 
     Write-Output ""
     Write-Output "  -> $StackName ($TemplateFile)"
 
+    # Los templatepad op relatief aan de scriptlocatie, niet aan de huidige shellmap
     $ResolvedTemplateFile = if ([System.IO.Path]::IsPathRooted($TemplateFile)) {
         $TemplateFile
     } else {
@@ -173,7 +155,7 @@ function Invoke-StackDeployment {
         exit 1
     }
 
-    # Controleer of de stack al bestaat en in welke status hij staat
+    # Bepaal of de stack al bestaat en in welke status hij staat
     $StackStatus = aws cloudformation describe-stacks --stack-name $StackName --query "Stacks[0].StackStatus" --output text 2>$null
     $StackExists = ($LASTEXITCODE -eq 0)
 
@@ -197,18 +179,10 @@ function Invoke-StackDeployment {
 
     if ($StackExists) {
         # Stack bestaat: bijwerken
-        if ($Params.Count -gt 0) {
-            $UpdateOutput = aws cloudformation update-stack `
-                --stack-name $StackName `
-                --template-body "file://$ResolvedTemplateFile" `
-                --parameters $Params `
-                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
-        } else {
-            $UpdateOutput = aws cloudformation update-stack `
-                --stack-name $StackName `
-                --template-body "file://$ResolvedTemplateFile" `
-                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
-        }
+        $UpdateOutput = aws cloudformation update-stack `
+            --stack-name $StackName `
+            --template-body "file://$ResolvedTemplateFile" `
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
 
         if ($LASTEXITCODE -eq 0) {
             Write-Output "    Wachten op update..."
@@ -225,18 +199,10 @@ function Invoke-StackDeployment {
         }
     } else {
         # Stack bestaat niet: aanmaken
-        if ($Params.Count -gt 0) {
-            aws cloudformation create-stack `
-                --stack-name $StackName `
-                --template-body "file://$ResolvedTemplateFile" `
-                --parameters $Params `
-                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
-        } else {
-            aws cloudformation create-stack `
-                --stack-name $StackName `
-                --template-body "file://$ResolvedTemplateFile" `
-                --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
-        }
+        aws cloudformation create-stack `
+            --stack-name $StackName `
+            --template-body "file://$ResolvedTemplateFile" `
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
 
         if ($LASTEXITCODE -ne 0) {
             Write-Output "    FOUT: aanmaken van stack mislukt."
@@ -254,7 +220,7 @@ function Invoke-StackDeployment {
 }
 
 # ---------------------------------------------------------------------------
-# Stap 5: deployment uitvoeren in de juiste volgorde
+# Stap 4: deployment uitvoeren in de juiste volgorde
 #
 # De volgorde is belangrijk: latere stacks importeren outputs van eerdere
 # stacks via !ImportValue. Een stack die nog niet bestaat kan niet worden
@@ -275,8 +241,7 @@ Invoke-StackDeployment -StackName "cloudshirt-swarm-ecr" -TemplateFile ".\clouds
 #    Gebruikt de vooraf aangemaakte LabInstanceProfile van AWS Academy.
 #    Initialiseert de Swarm en slaat join-token op in SSM.
 Write-Output "Stap 3/5 - Buildserver (Swarm Manager)"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-buildserver" -TemplateFile ".\cloudshirt-swarm-buildserver.yml" `
-    -Params @("ParameterKey=KeyName,ParameterValue=$KeyName")
+Invoke-StackDeployment -StackName "cloudshirt-swarm-buildserver" -TemplateFile ".\cloudshirt-swarm-buildserver.yml"
 
 # 4. Application Load Balancer
 Write-Output "Stap 4/5 - Application Load Balancer"
@@ -285,8 +250,7 @@ Invoke-StackDeployment -StackName "cloudshirt-swarm-alb" -TemplateFile ".\clouds
 # 5. Auto Scaling Group (Swarm Workers)
 #    Afhankelijk van ALB target group en SSM-parameters van de Buildserver.
 Write-Output "Stap 5/5 - Auto Scaling Group (Swarm Workers)"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-asg" -TemplateFile ".\cloudshirt-swarm-asg.yml" `
-    -Params @("ParameterKey=KeyName,ParameterValue=$KeyName")
+Invoke-StackDeployment -StackName "cloudshirt-swarm-asg" -TemplateFile ".\cloudshirt-swarm-asg.yml"
 
 # ---------------------------------------------------------------------------
 # Klaar
@@ -309,7 +273,7 @@ if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
     Write-Output "  aws cloudformation describe-stacks --stack-name cloudshirt-swarm-alb --query 'Stacks[0].Outputs'"
 }
 
-# Eerste ALB target health tonen voor snellere troubleshooting
+# ALB target health tonen voor snelle troubleshooting
 $TargetGroupArn = aws cloudformation describe-stacks `
     --stack-name "cloudshirt-swarm-alb" `
     --query "Stacks[0].Outputs[?OutputKey=='TargetGroupArn'].OutputValue" `
@@ -317,7 +281,7 @@ $TargetGroupArn = aws cloudformation describe-stacks `
 
 if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
     Write-Output ""
-    Write-Output "ALB target health (eerste controle):"
+    Write-Output "ALB target health:"
     aws elbv2 describe-target-health `
         --target-group-arn $TargetGroupArn `
         --query "TargetHealthDescriptions[].{Instance:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason,Description:TargetHealth.Description}" `
