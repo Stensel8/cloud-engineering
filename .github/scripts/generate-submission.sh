@@ -27,7 +27,7 @@ TEX
 
 PANDOC_OPTS=(
   --pdf-engine=xelatex
-  --from gfm+raw_tex
+  --from markdown+raw_tex
   --variable "geometry:margin=1.5cm"
   --variable "fontsize=11pt"
   --variable "mainfont=DejaVu Serif"
