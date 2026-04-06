@@ -95,6 +95,22 @@ do
   fi
 done
 
+# Converteer AVIF-afbeeldingen naar PNG (LaTeX ondersteunt AVIF niet)
+for search_dir in \
+  "cloud-automation-concepts/Assignment 1 - AWS Basics" \
+  "cloud-automation-concepts/Assignment 2 - Docker Swarm" \
+  "cloud-automation-concepts/Assignment 3 - Orchestration"
+do
+  find "$search_dir" -name "*.avif" 2>/dev/null | while read -r avif_file; do
+    png_file="${avif_file%.avif}.png"
+    avifdec "$avif_file" "$png_file" 2>/dev/null || true
+  done
+done
+sed -i 's/\.avif/.png/g' "$COMBINED"
+# Verwijder eventuele resterende webm-verwijzingen (niet ondersteund in PDF)
+sed -i 's|!\[[^]]*\]([^)]*\.webm)||g' "$COMBINED"
+sed -i 's|<video[^>]*>.*</video>||g' "$COMBINED"
+
 # Resource paths zodat pandoc images kan vinden (meerdere paden, dubbele punt als scheidingsteken)
 RESOURCE_PATH=".:\
 cloud-automation-concepts/Assignment 1 - AWS Basics:\

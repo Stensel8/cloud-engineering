@@ -31,6 +31,7 @@ jobs:
             texlive-latex-extra \
             lmodern \
             fonts-dejavu \
+            libavif-bin \
             zip
 
       - name: Genereer PDF's en ZIP
