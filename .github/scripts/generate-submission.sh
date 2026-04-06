@@ -50,31 +50,39 @@ echo "Genereren: cloud-automation-concepts.pdf"
 COMBINED=$(mktemp --suffix=.md)
 trap 'rm -f "$COMBINED"' EXIT
 
-append "cloud-automation-concepts/README.md"
+# README afkappen vóór repo-specifieke secties (Weekmateriaal, VS Code, AWS CLI)
+readme="cloud-automation-concepts/README.md"
+if [ -f "$readme" ]; then
+  sed '/^---$/,$ d' "$readme" >> "$COMBINED"
+  printf '\n\n\\newpage\n\n' >> "$COMBINED"
+else
+  echo "  WAARSCHUWING: bestand niet gevonden: $readme" >&2
+fi
 
-# Weekopdrachten: komen te vervallen, maar wel toegevoegd voor volledigheid
-cat >> "$COMBINED" << 'SECTION'
-# Weekopdrachten (Vervallen)
-
-> **Opmerking:** De weekopdrachten zijn in de loop van het vak komen te vervallen.
-> Ze zijn hier meegenomen voor volledigheid en tonen het werk dat tot dan toe
-> was uitgewerkt.
-
-SECTION
-
-for week in 1 2 3 4; do
-  week_dir="cloud-automation-concepts/Weekopdrachten (vervallen)/Week ${week}"
-  append "${week_dir}/README.md"
-  append "${week_dir}/Opdracht/README.md"
-  append "${week_dir}/Uitwerking/README.md"
+# Strip <video> tags (werken niet in PDF) en voeg assignments toe
+for assignment_dir in \
+  "cloud-automation-concepts/Assignment 1 - AWS Basics" \
+  "cloud-automation-concepts/Assignment 2 - Docker Swarm" \
+  "cloud-automation-concepts/Assignment 3 - Orchestration"
+do
+  readme="${assignment_dir}/README.md"
+  if [ -f "$readme" ]; then
+    sed 's|<video[^>]*>.*</video>||g' "$readme" >> "$COMBINED"
+    printf '\n\n\\newpage\n\n' >> "$COMBINED"
+  else
+    echo "  WAARSCHUWING: bestand niet gevonden: $readme" >&2
+  fi
 done
 
-append "cloud-automation-concepts/Assignment 1 - AWS Basics/README.md"
-append "cloud-automation-concepts/Assignment 2 - Docker Swarm/README.md"
-append "cloud-automation-concepts/Assignment 3 - Orchestration/README.md"
+# Resource paths zodat pandoc images kan vinden (meerdere paden, dubbele punt als scheidingsteken)
+RESOURCE_PATH=".:\
+cloud-automation-concepts/Assignment 1 - AWS Basics:\
+cloud-automation-concepts/Assignment 2 - Docker Swarm:\
+cloud-automation-concepts/Assignment 3 - Orchestration"
 
 pandoc "$COMBINED" \
   "${PANDOC_OPTS[@]}" \
+  --resource-path="$RESOURCE_PATH" \
   --metadata title="Cloud Automation Concepts" \
   --metadata author="Sten Tijhuis" \
   --metadata author="Wout Achterhuis" \
