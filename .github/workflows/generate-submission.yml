@@ -29,6 +29,7 @@ jobs:
             texlive-xetex \
             texlive-fonts-recommended \
             texlive-latex-extra \
+            lmodern \
             fonts-dejavu \
             zip
 
