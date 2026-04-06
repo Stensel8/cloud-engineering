@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   CloudShirt Docker Swarm - ECR-stack (REQ-12).
   Elastic Container Registry voor Docker-images die de Buildserver
-  nachtelijks bouwt en pusht.
+  nachtelijks bouwt en pusht: een repo voor de web-frontend en een voor de Go API.
 
 # ---------------------------------------------------------------------------
 # Parameters
@@ -12,13 +12,14 @@ Parameters:
   ECRRepoName:
     Type: String
     Default: cloudshirt
-    Description: Naam van de ECR-repository
+    Description: Naam van de ECR-repository voor de web-frontend
 
 # ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
 Resources:
 
+  # ── ECR-repository voor de web-frontend (REQ-12) ─────────────────────────
   ECRRepository:
     Type: AWS::ECR::Repository
     Metadata:
@@ -50,7 +51,41 @@ Resources:
           }
       Tags:
         - Key: Name
-          Value: CloudShirt-ECR
+          Value: CloudShirt-ECR-Web
+
+  # ── ECR-repository voor de Go API (REQ-12) ───────────────────────────────
+  ECRRepositoryApi:
+    Type: AWS::ECR::Repository
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_136
+            comment: "KMS-encryptie niet beschikbaar in AWS Academy student lab"
+    Properties:
+      RepositoryName: !Sub "${ECRRepoName}-api"
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      # Bewaar maximaal 10 images om kosten te beperken
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Name
+          Value: CloudShirt-ECR-Api
 
 # ---------------------------------------------------------------------------
 # Outputs — geexporteerd voor gebruik door andere stacks
@@ -58,13 +93,19 @@ Resources:
 Outputs:
 
   ECRRepoName:
-    Description: Naam van de ECR-repository
+    Description: Naam van de ECR-repository (web-frontend)
     Value: !Ref ECRRepoName
     Export:
       Name: !Sub "${AWS::StackName}:ECRRepoName"
 
   ECRRepositoryURI:
-    Description: Volledige URI van de ECR-repository
+    Description: Volledige URI van de web ECR-repository
     Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}"
     Export:
       Name: !Sub "${AWS::StackName}:ECRRepositoryURI"
+
+  ECRApiRepositoryURI:
+    Description: Volledige URI van de API ECR-repository
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}-api"
+    Export:
+      Name: !Sub "${AWS::StackName}:ECRApiRepositoryURI"
