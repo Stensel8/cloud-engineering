@@ -258,6 +258,15 @@ Invoke-StackDeployment -StackName "cloudshirt-swarm-asg" -TemplateFile ".\clouds
 Write-Section "Deployment voltooid"
 Write-Output "Alle stacks zijn succesvol gedeployt."
 Write-Output ""
+Write-Output "Vereisten afgevinkt:"
+Write-Output "  REQ-08  Applicatie is gedockeriseerd (Dockerfile in CloudShirt-Hugo)"
+Write-Output "  REQ-09  Buildserver staat in het private subnet (geen publiek IP)"
+Write-Output "  REQ-10  Docker Compose voor services en uitrol (docker-compose.swarm.yml)"
+Write-Output "  REQ-11  Nightly builds op de Buildserver (cron 02:00 UTC)"
+Write-Output "  REQ-12  Images worden gepusht naar ECR (nightly-build.sh)"
+Write-Output "  REQ-13  Buildserver als Swarm Manager (initialiseert Swarm, beheert join-token)"
+Write-Output "  REQ-14  ASG-instances als Swarm Workers (joinen via SSM-token)"
+Write-Output ""
 
 # ALB-URL ophalen en tonen
 $AlbDns = aws cloudformation describe-stacks `

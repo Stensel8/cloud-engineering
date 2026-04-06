@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  CloudShirt Docker Swarm - ECR-stack.
-  Elastic Container Registry voor Docker-images.
+  CloudShirt Docker Swarm - ECR-stack (REQ-12).
+  Elastic Container Registry voor Docker-images die de Buildserver
+  nachtelijks bouwt en pusht.
 
 # ---------------------------------------------------------------------------
 # Parameters
