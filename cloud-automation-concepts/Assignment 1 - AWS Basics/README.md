@@ -1,20 +1,30 @@
 # Assignment 1 - AWS Basics
 
-Korte bewijsreadme voor de deployment via [Deploy-CloudShirt.ps1](Deploy-CloudShirt.ps1).
+Bewijs van uitvoering voor de deployment via [Deploy-CloudShirt.ps1](Deploy-CloudShirt.ps1).
 
 ## Resultaat
 
-De deployment kan opnieuw worden uitgevoerd in AWS Academy door voor de Lambda de bestaande LabRole te gebruiken in plaats van zelf een IAM-role aan te maken.
+Alle CloudFormation-stacks zijn succesvol uitgerold in AWS Academy. De applicatie is bereikbaar via de ALB-URL en verwerkt bestellingen via RDS PostgreSQL. De Lambda-export-monitor draait op schema via EventBridge.
+
+De deployment kan opnieuw worden uitgevoerd door voor de Lambda de bestaande `LabRole` te gebruiken in plaats van zelf een IAM-role aan te maken.
+
+## Demo
+
+<video src="Demo.webm" controls width="100%"></video>
 
 ## Bewijs
 
 ![Succesvolle deployment via script](Script%20van%20assignment%201%20toont%20succesvolle%20deployment.png)
 
+Het deployment-script maakt alle CloudFormation-stacks succesvol aan en toont de ALB-URL.
+
 ![CloudShirt applicatie draait](Cloudshirt%20assignment%201%20draait..png)
+
+De CloudShirt-applicatie is bereikbaar via de Load Balancer.
 
 ![Aankoop doen in de CloudShirt-app](Het%20doen%20van%20een%20aankoop%20in%20de%20CloudShirt-app.png)
 
-De eerste afbeelding toont het deployment-script dat alle CloudFormation-stacks succesvol aanmaakt. De tweede afbeelding laat de draaiende CloudShirt-applicatie zien. De derde afbeelding toont een aankoop in de winkelwagen.
+Een aankoop wordt afgerond in de winkelwagen.
 
 ## Stacks
 
