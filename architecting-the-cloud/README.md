@@ -19,36 +19,36 @@ Best practices voor hybrid en public cloudarchitecturen, met de nadruk op **Amaz
 
 ### Individueel
 
-- [ ] 4 modules afgerond van de AWS Cloud Architecting-cursus, met screenshot van minstens 70/100 punten per module:
-  - [ ] Module 11 (verplicht)
-  - [ ] Module 14 (verplicht)
-  - [ ] Twee aanvullende modules naar keuze *(uitgezonderd modules 1, 2 en 17)*
+- [x] 4 modules afgerond van de AWS Cloud Architecting-cursus, met screenshot van minstens 70/100 punten per module:
+  - [x] Module 11 (verplicht)
+  - [x] Module 14 (verplicht)
+  - [x] Twee aanvullende modules naar keuze *(uitgezonderd modules 1, 2 en 17)*
   - Screenshots opslaan in [Individueel/AWS-Modules/](Individueel/AWS-Modules/)
 
 ### Duo
 
 **Casus Zwarte Cross:** huidige situatie beschreven en nieuwe situatie ontworpen
 
-- [ ] Sten
-- [ ] Wout
+- [x] Sten
+- [x] Wout
 - Bestanden in [Duo/Casus-Zwarte-Cross/](Duo/Casus-Zwarte-Cross/)
 
 **Presentatie EU/Sovereign Cloud** (minstens 15 minuten presentatie + 15 minuten discussie)
 
-- [ ] Sten
-- [ ] Wout
+- [x] Sten
+- [x] Wout
 - Slides in [Duo/Presentaties/EU-Sovereign-Cloud/](Duo/Presentaties/EU-Sovereign-Cloud/)
 
 **Aanwezig bij alle andere duo-presentaties en samenvattingen gemaakt**
 
-- [ ] Sten
-- [ ] Wout
+- [x] Sten
+- [x] Wout
 - Notulen in [Duo/Presentaties/Notulen/](Duo/Presentaties/Notulen/)
 
 **Azure FinCloud-opdracht** (CAF: Strategy- en Ready-fase)
 
-- [ ] Sten
-- [ ] Wout
+- [x] Sten
+- [x] Wout
 - Platform landing zone ontworpen en aangemaakt (1x)
 - Application landing zone(s) ontworpen en aangemaakt
 - Bestanden in [Duo/Azure-FinCloud/](Duo/Azure-FinCloud/)
