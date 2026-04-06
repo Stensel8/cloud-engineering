@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  CloudShirt Docker Swarm - ASG-stack.
+  CloudShirt Docker Swarm - ASG Workers (REQ-14).
   Auto Scaling Group met worker nodes die automatisch de Docker Swarm joinen
   via het join-token en manager-IP uit SSM Parameter Store.
 
@@ -9,15 +9,12 @@ Description: >
 # ---------------------------------------------------------------------------
 Parameters:
 
-  KeyName:
-    Type: String
-    Default: ""
-    Description: EC2 Key Pair naam (optioneel - laat leeg als je SSM gebruikt)
-
   InstanceType:
     Type: String
-    Default: t3.small
-    AllowedValues: [t3.micro, t3.small, t3.medium]
+    Default: t3.medium
+    AllowedValues: [t3.small, t3.medium, t3.large]
+    # t3.medium (4 GB) als standaard: geeft voldoende ruimte voor Docker containers
+    # naast het Swarm gossip-verkeer en ECR image pulls.
     Description: EC2 instance type voor worker nodes
 
   AmiId:
@@ -41,23 +38,17 @@ Parameters:
     Description: Gewenst aantal worker instances
 
 # ---------------------------------------------------------------------------
-# Conditions
-# ---------------------------------------------------------------------------
-Conditions:
-  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
-
-# ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
 Resources:
 
+  # ── Launch Template voor Swarm Workers (REQ-14) ──────────────────────────
   WorkerLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateName: CloudShirt-Worker-LT
       LaunchTemplateData:
         InstanceType: !Ref InstanceType
-        KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
         ImageId: !Ref AmiId
         IamInstanceProfile:
           Name: LabInstanceProfile
@@ -102,7 +93,7 @@ Resources:
               docker login --username AWS --password-stdin \
               ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
 
-            # Swarm join-token en manager-IP ophalen uit SSM Parameter Store
+            # ── Swarm join-token en manager-IP ophalen uit SSM (REQ-14) ──────────
             MANAGER_IP=$(aws ssm get-parameter \
               --name "/cloudshirt/swarm/manager-ip" \
               --query "Parameter.Value" --output text --region ${AWS::Region})
@@ -112,15 +103,17 @@ Resources:
               --with-decryption \
               --query "Parameter.Value" --output text --region ${AWS::Region})
 
-            # Joinen bij de Swarm
+            # Joinen bij de Swarm als worker node (REQ-14)
             docker swarm join --token "$WORKER_TOKEN" "$MANAGER_IP:2377"
 
             echo "[UserData] Worker gejoined aan Swarm op $MANAGER_IP"
 
+  # ── Auto Scaling Group (REQ-14: ASG-instances als Swarm Workers) ─────────
   WorkerAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       AutoScalingGroupName: CloudShirt-Worker-ASG
+      # Minimaal 2 instances (1 per AZ) voor spreiding over availability zones
       MinSize: !Ref MinInstances
       MaxSize: !Ref MaxInstances
       DesiredCapacity: !Ref DesiredInstances
@@ -142,7 +135,7 @@ Resources:
           Value: SwarmWorker
           PropagateAtLaunch: true
 
-  # Schaal automatisch bij hoge CPU-belasting
+  # ── CPU-gebaseerde schaalactie voor piekbelasting ─────────────────────────
   CPUScalingPolicy:
     Type: AWS::AutoScaling::ScalingPolicy
     Properties:

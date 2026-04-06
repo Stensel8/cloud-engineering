@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  CloudShirt Docker Swarm - ALB-stack.
-  Application Load Balancer, target group en HTTP-listener.
+  CloudShirt Docker Swarm - ALB-stack (ondersteunt REQ-14).
+  Application Load Balancer, target group en HTTP-listener voor
+  inkomend verkeer naar de Swarm worker nodes.
 
 # ---------------------------------------------------------------------------
 # Resources

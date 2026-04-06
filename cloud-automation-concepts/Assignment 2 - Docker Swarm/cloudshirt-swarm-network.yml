@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  CloudShirt Docker Swarm - Netwerk-stack.
+  CloudShirt Docker Swarm - Netwerk-stack (ondersteunt REQ-09, REQ-13, REQ-14).
   VPC, publieke en private subnets, Internet Gateway, NAT Gateway,
-  routetabellen en security groups.
+  routetabellen en security groups voor Buildserver en worker nodes.
 
 # ---------------------------------------------------------------------------
 # Mappings — CIDR-blokken voor VPC en subnets

@@ -74,13 +74,17 @@ Opruimen:
 .\Remove-DockerSwarm.ps1
 ```
 
+## Demo
+
+<video src="Demo.webm" controls width="100%"></video>
+
 ## Bewijs
 
-![CloudFormation stacks](Bewijs%20van%20uitvoering%20-%20Cloudformation%20stacks.png)
+![CloudFormation stacks](Bewijs%20van%20uitvoering%20-%20Cloudformation%20stacks.avif)
 
 De CloudFormation-stacks zijn succesvol aangemaakt in AWS.
 
-![Docker applicatie](Bewijs%20van%20uitvoering%20-%20Docker%20applicatie.png)
+![Docker applicatie](Bewijs%20van%20uitvoering%20-%20Docker%20applicatie.avif)
 
 De CloudShirt-Hugo applicatie draait als Docker Swarm-service.
 
@@ -96,7 +100,7 @@ De CloudShirt-Hugo applicatie draait als Docker Swarm-service.
 
 ## Aanbevelingen
 
-Docker Swarm wordt niet meer actief doorontwikkeld. Voor een productieomgeving zou je eerder kijken naar Amazon ECS of Kubernetes.
+Voor een productieomgeving gaat mijn voorkeur uit naar Kubernetes, bijvoorbeeld via Amazon EKS. Dat biedt meer mogelijkheden voor schaalbaarheid, beheer en ecosysteem-integraties.
 
 HTTPS staat nu niet aan op de load balancer. In productie zou je een certificaat koppelen.
 

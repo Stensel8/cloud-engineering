@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  CloudShirt Docker Swarm - Buildserver-stack.
-  EC2 instance als Docker Swarm Manager: initialiseert de Swarm,
+  CloudShirt Docker Swarm - Buildserver (REQ-09, REQ-11, REQ-12, REQ-13).
+  EC2 instance in het private subnet als Docker Swarm Manager: initialiseert de Swarm,
   slaat join-token op in SSM en voert nightly builds uit naar ECR.
 
 # ---------------------------------------------------------------------------
@@ -9,14 +9,11 @@ Description: >
 # ---------------------------------------------------------------------------
 Parameters:
 
-  KeyName:
-    Type: String
-    Default: ""
-    Description: EC2 Key Pair naam (optioneel - laat leeg als je SSM gebruikt)
-
   BuildserverInstanceType:
     Type: String
-    Default: t3.small
+    Default: t3.medium
+    # t3.small (2 GB) kan krap worden tijdens grote Docker builds.
+    # t3.medium (4 GB) geeft voldoende ruimte voor image builds en Swarm management.
     Description: EC2 instance type voor de Buildserver
 
   AmiId:
@@ -32,23 +29,17 @@ Parameters:
       in de cloudshirt-swarm-ecr stack.
 
 # ---------------------------------------------------------------------------
-# Conditions
-# ---------------------------------------------------------------------------
-Conditions:
-  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
-
-# ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
 Resources:
 
+  # ── Buildserver (REQ-09: private subnet, REQ-13: Swarm Manager) ──────────
   BuildserverInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref BuildserverInstanceType
-      KeyName: !If [HasKeyName, !Ref KeyName, !Ref AWS::NoValue]
       ImageId: !Ref AmiId
-      # Buildserver staat in het private subnet (geen publiek IP)
+      # Buildserver staat in het private subnet (geen publiek IP) — REQ-09
       SubnetId: !ImportValue cloudshirt-swarm-network:PrivateSubnetA
       SecurityGroupIds:
         - !ImportValue cloudshirt-swarm-network:BuildserverSecurityGroup
@@ -84,7 +75,7 @@ Resources:
           # Wacht tot Docker klaar is
           sleep 10
 
-          # Docker Swarm initialiseren (deze node = manager)
+          # ── Swarm initialiseren (REQ-13: Buildserver als Swarm Manager) ──────
           # hostname -I geeft het primaire IP zonder afhankelijkheid van IMDS
           PRIVATE_IP=$(hostname -I | awk '{print $1}')
           docker swarm init --advertise-addr $PRIVATE_IP
@@ -114,19 +105,19 @@ Resources:
           EOF
           chmod +x /usr/local/bin/ecr-login.sh
 
-          # Nightly build script: clone/pull -> build -> push naar ECR -> rolling update Swarm
-          # Dockerfile en docker-compose.yml komen rechtstreeks uit CloudShirt-Hugo.
+          # ── Nightly build script (REQ-11: nachtelijke builds, REQ-12: push naar ECR) ──
+          # clone/pull -> bouw web + API -> push naar ECR -> rolling update Swarm services
           cat <<'EOF' > /usr/local/bin/nightly-build.sh
           #!/bin/bash
           set -e
           REGION="${AWS::Region}"
           ACCOUNT="${AWS::AccountId}"
-          REPO="${ECRRepoName}"
-          ECR_URI="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$REPO"
+          WEB_REPO="${ECRRepoName}"
+          API_REPO="${ECRRepoName}-api"
+          ECR_WEB_URI="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$WEB_REPO"
+          ECR_API_URI="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$API_REPO"
           DATE_TAG=$(date +%Y%m%d)
           APP_DIR="/opt/cloudshirt-hugo"
-          SWARM_COMPOSE_FILE="$APP_DIR/docker-compose.swarm.yml"
-          SERVICE_NAME="cloudshirt_web"
 
           echo "[$(date)] Nightly build gestart..."
 
@@ -142,43 +133,53 @@ Resources:
             cd "$APP_DIR"
           fi
 
-          if [ ! -f "$APP_DIR/Dockerfile" ]; then
-            echo "Dockerfile niet gevonden in repository"
+          if [ ! -f "$APP_DIR/Dockerfile" ] || [ ! -f "$APP_DIR/api/Dockerfile" ]; then
+            echo "Dockerfile(s) niet gevonden in repository"
             exit 1
           fi
 
-          if [ ! -f "$SWARM_COMPOSE_FILE" ]; then
+          if [ ! -f "$APP_DIR/docker-compose.swarm.yml" ]; then
             echo "docker-compose.swarm.yml niet gevonden in repository"
             exit 1
           fi
 
-          # Image bouwen
-          docker build -t "$REPO:$DATE_TAG" -t "$REPO:latest" .
+          # Web-frontend bouwen en pushen naar ECR (REQ-12)
+          docker build -t "cloudshirt-go-web:$DATE_TAG" -t "cloudshirt-go-web:latest" .
+          docker tag "cloudshirt-go-web:$DATE_TAG" "$ECR_WEB_URI:$DATE_TAG"
+          docker tag "cloudshirt-go-web:latest"    "$ECR_WEB_URI:latest"
+          docker push "$ECR_WEB_URI:$DATE_TAG"
+          docker push "$ECR_WEB_URI:latest"
 
-          # Taggen voor ECR
-          docker tag "$REPO:$DATE_TAG" "$ECR_URI:$DATE_TAG"
-          docker tag "$REPO:latest"    "$ECR_URI:latest"
+          # Go API bouwen en pushen naar ECR (REQ-12)
+          docker build -t "cloudshirt-go-api:$DATE_TAG" -t "cloudshirt-go-api:latest" ./api
+          docker tag "cloudshirt-go-api:$DATE_TAG" "$ECR_API_URI:$DATE_TAG"
+          docker tag "cloudshirt-go-api:latest"    "$ECR_API_URI:latest"
+          docker push "$ECR_API_URI:$DATE_TAG"
+          docker push "$ECR_API_URI:latest"
 
-          # Pushen naar ECR
-          docker push "$ECR_URI:$DATE_TAG"
-          docker push "$ECR_URI:latest"
+          echo "[$(date)] Build klaar: web=$ECR_WEB_URI:$DATE_TAG | api=$ECR_API_URI:$DATE_TAG"
 
-          echo "[$(date)] Build klaar: $ECR_URI:$DATE_TAG"
-
-          # Swarm service bijwerken (rolling update)
+          # Rolling update van actieve Swarm services (REQ-13)
           docker service update \
-            --image "$ECR_URI:$DATE_TAG" \
+            --with-registry-auth \
+            --image "$ECR_WEB_URI:$DATE_TAG" \
             --update-parallelism 1 \
             --update-delay 30s \
-            "$SERVICE_NAME" 2>/dev/null || \
-            echo "Service nog niet actief; update overgeslagen."
+            "cloudshirt_web" 2>/dev/null || echo "cloudshirt_web niet actief; update overgeslagen."
+
+          docker service update \
+            --with-registry-auth \
+            --image "$ECR_API_URI:$DATE_TAG" \
+            --update-parallelism 1 \
+            --update-delay 30s \
+            "cloudshirt_api" 2>/dev/null || echo "cloudshirt_api niet actief; update overgeslagen."
 
           # Verwijder ongebruikte images
           docker image prune -f
           EOF
           chmod +x /usr/local/bin/nightly-build.sh
 
-          # Nightly build inplannen om 02:00 UTC
+          # Nightly build inplannen om 02:00 UTC (REQ-11)
           mkdir -p /etc/cron.d
           echo "0 2 * * * root /usr/local/bin/nightly-build.sh >> /var/log/nightly-build.log 2>&1" > /etc/cron.d/nightly-build
           chmod 0644 /etc/cron.d/nightly-build
@@ -217,11 +218,12 @@ Resources:
             echo "[UserData] WAARSCHUWING: geen worker Ready binnen timeout; stack deploy gaat toch door."
           fi
 
-          # Swarm stack deployen met betere logging
+          # ── Swarm stack deployen (REQ-10: Docker Compose, REQ-13: Swarm Manager) ──
           cd /opt/cloudshirt-hugo
-          export ECR_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest"
+          export ECR_WEB_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest"
+          export ECR_API_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}-api:latest"
           echo "[UserData] Deploying stack van docker-compose.swarm.yml..."
-          if docker stack deploy -c docker-compose.swarm.yml cloudshirt 2>&1; then
+          if docker stack deploy --with-registry-auth -c docker-compose.swarm.yml cloudshirt 2>&1; then
             echo "[UserData] Stack deploy geslaagd."
           else
             DEPLOY_EXIT=$?
