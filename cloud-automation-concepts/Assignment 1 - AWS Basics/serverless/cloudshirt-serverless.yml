@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  CloudShirt Serverless (REQ-08). Lambda controleert dagelijks de S3
+  order-export en stuurt een SNS-melding via EventBridge.
+
+Parameters:
+
+  BucketName:
+    Type: String
+    Description: Naam van de S3-bucket voor RDS-exports
+
+  LambdaRoleArn:
+    Type: String
+    Description: ARN van de bestaande IAM-role voor Lambda (AWS Academy LabRole)
+
+Resources:
+
+  # SNS Topic: ontvangt export-statusmeldingen
+  ExportNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: alias/aws/sns
+
+  # DLQ: vangt mislukte asynchrone Lambda-events op
+  ExportMonitorDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+
+  # Lambda: controleert dagelijks of orders.csv vandaag bijgewerkt is
+  ExportMonitorFunction:
+    Type: AWS::Lambda::Function
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_117
+            comment: "Lambda in VPC voegt onnodige complexiteit toe; S3 en SNS zijn bereikbaar via public endpoints"
+          - id: CKV_AWS_173
+            comment: "Lambda KMS env var encryptie vereist KMS-rechten, niet beschikbaar in student lab"
+    Properties:
+      Description: Controleert de CloudShirt order-export en stuurt een SNS-melding.
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !Ref LambdaRoleArn
+      Timeout: 30
+      ReservedConcurrentExecutions: 5
+      DeadLetterConfig:
+        TargetArn: !GetAtt ExportMonitorDLQ.Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref BucketName
+          SNS_TOPIC_ARN: !Ref ExportNotificationTopic
+          EXPORT_KEY: exports/orders.csv
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          from datetime import datetime, timezone
+
+          s3  = boto3.client('s3')
+          sns = boto3.client('sns')
+
+          def handler(event, context):
+              bucket    = os.environ['BUCKET_NAME']
+              key       = os.environ['EXPORT_KEY']
+              topic_arn = os.environ['SNS_TOPIC_ARN']
+              today     = datetime.now(timezone.utc).date()
+
+              try:
+                  resp          = s3.head_object(Bucket=bucket, Key=key)
+                  last_modified = resp['LastModified'].date()
+                  size_kb       = resp['ContentLength'] // 1024
+
+                  if last_modified >= today:
+                      subject = 'CloudShirt export: GESLAAGD'
+                      message = (
+                          f'De dagelijkse order-export is succesvol uitgevoerd.\n\n'
+                          f'Datum:            {today}\n'
+                          f'Bestand:          s3://{bucket}/{key}\n'
+                          f'Laatst gewijzigd: {resp["LastModified"]}\n'
+                          f'Bestandsgrootte:  {size_kb} KB\n'
+                      )
+                  else:
+                      subject = 'CloudShirt export: GEMIST'
+                      message = (
+                          f'De order-export is vandaag NIET bijgewerkt.\n\n'
+                          f'Datum vandaag:  {today}\n'
+                          f'Laatste update: {last_modified}\n\n'
+                          f'Controleer de cron-job op de EC2-instances '
+                          f'(/etc/cron.d/cloudshirt-export).'
+                      )
+
+              except Exception as e:
+                  subject = 'CloudShirt export: FOUT'
+                  message = (
+                      f'Exportbestand niet gevonden of niet toegankelijk.\n\n'
+                      f'Bucket: {bucket}\n'
+                      f'Key:    {key}\n'
+                      f'Fout:   {e}\n'
+                  )
+
+              sns.publish(TopicArn=topic_arn, Subject=subject, Message=message)
+              print(f'[{subject}] {message}')
+              return {'statusCode': 200, 'body': subject}
+
+  # EventBridge: dagelijkse trigger om 03:00 UTC
+  ExportMonitorSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Triggert de Lambda dagelijks om 03:00 UTC.
+      ScheduleExpression: cron(0 3 * * ? *)
+      State: ENABLED
+      Targets:
+        - Id: ExportMonitorLambdaTarget
+          Arn: !GetAtt ExportMonitorFunction.Arn
+
+  # Geeft EventBridge toestemming om de Lambda aan te roepen
+  ExportMonitorPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ExportMonitorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ExportMonitorSchedule.Arn
+
+Outputs:
+
+  LambdaFunctionName:
+    Description: Naam van de Lambda-functie
+    Value: !Ref ExportMonitorFunction
+    Export:
+      Name: !Sub "${AWS::StackName}:LambdaFunction"
+
+  SNSTopicArn:
+    Description: ARN van het SNS-topic voor export-meldingen
+    Value: !Ref ExportNotificationTopic
+    Export:
+      Name: !Sub "${AWS::StackName}:SNSTopic"
+
+  DLQUrl:
+    Description: URL van de SQS Dead Letter Queue
+    Value: !Ref ExportMonitorDLQ

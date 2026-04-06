@@ -1,9 +1,7 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt ELK-stack (REQ-05, REQ-06).
-  Installeert Elastic Stack v8.x (Elasticsearch, Logstash, Kibana) op
-  een enkele EC2-instance voor gecentraliseerde logverwerking.
-  Filebeat op de webservers verstuurt logs naar Logstash op poort 5044.
+  CloudShirt ELK (REQ-05, REQ-06). Elasticsearch, Logstash en Kibana
+  voor centrale logverwerking. Filebeat stuurt logs naar Logstash.
 
 # ---------------------------------------------------------------------------
 # Parameters
@@ -79,6 +77,7 @@ Resources:
       ImageId: ami-0190ba1cb5ab4e9e8   # Amazon Linux 2023 AMI (64-bit x86)
       InstanceType: t3.large
       KeyName: !Ref KeyName
+      IamInstanceProfile: LabInstanceProfile   # Vereist voor SSM Session Manager
       SubnetId: !ImportValue cloudshirt-network:CloudShirtSecondSubnet
       SecurityGroupIds:
         - !Ref ELKSecurityGroup

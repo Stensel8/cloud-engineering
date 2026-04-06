@@ -35,8 +35,4 @@ Deze repository wordt bijgehouden door [Sten Tijhuis](https://github.com/Stensel
 
 Deze repository heeft specifieke regels voor commits, pull requests en mediabestanden. Lees [CONTRIBUTING.md](CONTRIBUTING.md) voordat je wijzigingen indient.
 
-## Disclaimer
-
-Dit is een lopend project voor educatieve doeleinden. Code, configuraties en documentatie kunnen gedurende de cursus nog veranderen.
-
 ---

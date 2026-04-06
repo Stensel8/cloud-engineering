@@ -1,0 +1,61 @@
+name: Uitwerking exporteren naar PDF
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (bijv. v1.0-inlevering)"
+        required: true
+        default: "inlevering-v1"
+
+jobs:
+  genereer:
+    name: Genereer PDF en ZIP
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository (inclusief submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Installeer pandoc en LaTeX
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            pandoc \
+            texlive-xetex \
+            texlive-fonts-recommended \
+            texlive-latex-extra \
+            fonts-dejavu \
+            zip
+
+      - name: Genereer PDF's en ZIP
+        run: bash .github/scripts/generate-submission.sh
+        env:
+          OUT_DIR: output
+
+      - name: Upload als workflow-artefact (ter controle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: inlevering-${{ github.event.inputs.tag }}
+          path: output/
+          retention-days: 30
+
+      - name: Maak GitHub Release aan
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          name: "Inlevering ${{ github.event.inputs.tag }}"
+          body: |
+            Automatisch gegenereerde inlevering op ${{ github.run_id }}.
+
+            | Bestand | Inhoud |
+            |---|---|
+            | `cloud-automation-concepts.pdf` | Weekopdrachten + Assignment 1, 2, 3 |
+            | `cloud-engineering-code.zip` | Volledige codebase (zonder `.git`) |
+          files: |
+            output/cloud-automation-concepts.pdf
+            output/cloud-engineering-code.zip

@@ -1,0 +1,7 @@
+- module: system
+  syslog:
+    enabled: true
+    var.paths: ["/var/log/messages"]
+  auth:
+    enabled: true
+    var.paths: ["/var/log/secure"]

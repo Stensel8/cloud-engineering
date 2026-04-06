@@ -1,15 +1,26 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  Deploy CloudShirt Amazon RDS SQL Server instance, subnet group, and secret.
+  CloudShirt RDS (REQ-04). PostgreSQL 18 in private subnets,
+  credentials via Secrets Manager.
 
+# ---------------------------------------------------------------------------
+# Parameters
+# ---------------------------------------------------------------------------
 Parameters:
+
   DBAllocatedStorage:
     Type: Number
-    Default: 30
-    Description: The size of the database (Gb)
+    Default: 20
+    Description: Opslaggrootte van de database in GB
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
 Resources:
 
+  # ── Subnet Group — database in de private subnets van de VPC ─────────────
+  # Door de RDS-instance in private subnets te plaatsen is hij niet
+  # bereikbaar vanaf het internet (REQ-04: veilige databaseopslag).
   CloudShirtDBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -21,31 +32,54 @@ Resources:
         - Key: Name
           Value: CloudShirt-DBSubnetGroup
 
+  # ── Secrets Manager Secret — automatisch gegenereerde credentials ─────────
+  # AWS genereert een sterk wachtwoord (20 tekens) en slaat het veilig op.
+  # De EC2-instances halen de credentials op via de AWS CLI bij het opstarten,
+  # zodat het wachtwoord nooit in de CloudFormation-template of UserData staat.
   CloudShirtDBSecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_149
+            comment: "KMS CMK-encryptie niet beschikbaar in AWS Academy student lab"
     Properties:
       Description: Credentials for CloudShirt RDS master user
       GenerateSecretString:
         SecretStringTemplate: '{"username":"csadmin"}'
         GenerateStringKey: password
         PasswordLength: 20
-        ExcludeCharacters: '"@/\\'
+        ExcludeCharacters: "\"@/\\;'"  # ; en ' breken ADO.NET/Npgsql connection strings
 
+  # ── RDS PostgreSQL-instance ───────────────────────────────────────────────
+  # PostgreSQL 18 — de database die de CloudShirt-applicatie verwacht.
+  # db.t3.micro is voldoende voor de demo-omgeving (REQ-04).
+  # Multi-AZ en monitoring zijn uitgeschakeld om kosten te besparen.
+  # Opslag is versleuteld; automatische back-up bewaart 1 dag.
   CloudShirtRDSInstance:
     Type: AWS::RDS::DBInstance
     Metadata:
       checkov:
         skip:
           - id: CKV_AWS_157
-            comment: "SQL Server Express (sqlserver-ex) does not support Multi-AZ"
+            comment: "Multi-AZ uitgeschakeld om kosten te besparen in lab-omgeving"
+          - id: CKV_AWS_161
+            comment: "IAM-authenticatie niet beschikbaar in AWS Academy student lab; credentials via Secrets Manager"
+          - id: CKV_AWS_162
+            comment: "IAM-authenticatie niet beschikbaar in AWS Academy student lab; credentials via Secrets Manager"
+          - id: CKV_AWS_118
+            comment: "Enhanced monitoring uitgeschakeld om kosten te besparen in lab-omgeving"
     Properties:
       DBInstanceIdentifier: cloudshirt-db
-      Engine: sqlserver-ex
-      DBInstanceClass: db.t3.medium
+      Engine: postgres
+      EngineVersion: "18"
+      DBInstanceClass: db.t3.micro
       AllocatedStorage: !Ref DBAllocatedStorage
+      # Initiële database; de app maakt eshop_catalog en eshop_identity zelf aan
+      # via EF Core EnsureCreatedAsync() bij de eerste opstart.
+      DBName: postgres
       MasterUsername: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:username}}"
       MasterUserPassword: !Sub "{{resolve:secretsmanager:${CloudShirtDBSecret}:SecretString:password}}"
-      LicenseModel: license-included
       StorageEncrypted: true
       MonitoringInterval: 0
       VPCSecurityGroups:
@@ -56,18 +90,23 @@ Resources:
       MultiAZ: false
       StorageType: gp2
       DeletionProtection: false
+    # Bij verwijdering wordt een snapshot gemaakt zodat data niet verloren gaat.
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
 
+# ---------------------------------------------------------------------------
+# Outputs — geexporteerd voor gebruik door EC2- en ASG-stacks
+# ---------------------------------------------------------------------------
 Outputs:
+
   RDSEndpointAddress:
-    Description: The RDS endpoint address
+    Description: Hostname van het RDS PostgreSQL-endpoint
     Value: !GetAtt CloudShirtRDSInstance.Endpoint.Address
     Export:
       Name: !Sub "${AWS::StackName}:RDSEndpointAddress"
 
   RDSSecretArn:
-    Description: ARN for the generated RDS credentials secret
+    Description: ARN van het Secrets Manager-secret met de database-credentials
     Value: !Ref CloudShirtDBSecret
     Export:
       Name: !Sub "${AWS::StackName}:RDSSecretArn"

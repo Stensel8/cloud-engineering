@@ -173,6 +173,11 @@ Resources:
   # ALB: HTTP/HTTPS van het internet
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_260
+            comment: "Poort 80 bewust open: publieke web-app in HTTP lab-omgeving"
     Properties:
       GroupDescription: ALB - sta HTTP en HTTPS toe vanuit het internet
       VpcId: !Ref VPC

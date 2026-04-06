@@ -20,8 +20,14 @@ Resources:
 
   ECRRepository:
     Type: AWS::ECR::Repository
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_136
+            comment: "KMS-encryptie niet beschikbaar in AWS Academy student lab"
     Properties:
       RepositoryName: !Ref ECRRepoName
+      ImageTagMutability: IMMUTABLE
       ImageScanningConfiguration:
         ScanOnPush: true
       # Bewaar maximaal 10 images om kosten te beperken

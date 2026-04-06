@@ -5,7 +5,7 @@ provider "aws" {
 }
 
 provider "google" {
-  credentials = var.gcp_service_account_json != "" ? var.gcp_service_account_json : null
+  credentials = var.gcp_service_account_json != "" ? base64decode(var.gcp_service_account_json) : null
   project     = var.project_id
   region      = var.gcp_region
   zone        = "${var.gcp_region}-a"

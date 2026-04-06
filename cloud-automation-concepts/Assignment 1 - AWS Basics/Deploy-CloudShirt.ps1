@@ -11,14 +11,14 @@
     als ze al bestaan.
 
     Deployment-volgorde:
-      1. base-stack              -- VPC, subnetten, gateways
+      1. cloudshirt-network     -- VPC, subnetten, gateways, security groups
       2. cloudshirt-efs         -- Elastic File System
          cloudshirt-elk         -- ELK monitoring stack
-         cloudshirt-rds         -- RDS SQL Server database
+         cloudshirt-rds         -- RDS PostgreSQL database
       3. cloudshirt-ec2         -- EC2-webservers
-      4. cloudshirt-lb          -- Application Load Balancer
-      5. cloudshirt-asg         -- Auto Scaling Group
-      6. cloudshirt-s3          -- S3-bucket voor exports
+      4. cloudshirt-s3          -- S3-bucket voor exports
+      5. cloudshirt-lb          -- Application Load Balancer
+      6. cloudshirt-asg         -- Auto Scaling Group
       7. cloudshirt-serverless  -- Lambda export-monitor (REQ-08)
 
 .PARAMETER Region
@@ -157,6 +157,10 @@ if ([string]::IsNullOrWhiteSpace($BucketName)) {
 
 Write-Output "S3-bucketnaam: $BucketName"
 
+# AWS Academy levert meestal een bestaande LabRole die de Lambda kan gebruiken
+$LambdaRoleArn = "arn:aws:iam::${AccountId}:role/LabRole"
+Write-Output "Lambda-role ARN: $LambdaRoleArn"
+
 # ---------------------------------------------------------------------------
 # Hulpfunctie: deploy een CloudFormation-stack
 #
@@ -177,6 +181,9 @@ function Invoke-StackDeployment {
 
         # Voeg de S3-bucketnaam toe als stack-parameter
         [switch]$IncludeBucket,
+
+        # Voeg de Lambda-role-ARN toe als stack-parameter
+        [switch]$IncludeLambdaRole,
 
         # Voeg de ALB logbucket-parameter toe (alleen voor loadbalancer-stack)
         [switch]$IncludeLogBucket
@@ -211,6 +218,10 @@ function Invoke-StackDeployment {
 
     if ($IncludeBucket) {
         $Params += "ParameterKey=BucketName,ParameterValue=$BucketName"
+    }
+
+    if ($IncludeLambdaRole) {
+        $Params += "ParameterKey=LambdaRoleArn,ParameterValue=$LambdaRoleArn"
     }
 
     if ($IncludeLogBucket) {
@@ -297,35 +308,71 @@ Write-Output "Stap 1/7 - Netwerk"
 Invoke-StackDeployment -StackName "cloudshirt-network" -TemplateFile ".\cloudshirt-network.yml"
 
 # 2. Gedeelde services (afhankelijk van het netwerk)
-Write-Output "Stap 2/7 - Gedeelde services (EFS, ELK, RDS)"
+#    S3 staat hier ook: de bucket moet bestaan voordat config-bestanden geupload worden
+#    en voordat EC2 ze ophaalt via 'aws s3 cp'.
+Write-Output "Stap 2/7 - Gedeelde services (EFS, ELK, RDS, S3)"
 Invoke-StackDeployment -StackName "cloudshirt-efs" -TemplateFile ".\cloudshirt-efs.yml"
 Invoke-StackDeployment -StackName "cloudshirt-elk" -TemplateFile ".\cloudshirt-elk.yml"
 Invoke-StackDeployment -StackName "cloudshirt-rds" -TemplateFile ".\cloudshirt-rds.yml"
+Invoke-StackDeployment -StackName "cloudshirt-s3"  -TemplateFile ".\cloudshirt-s3.yml" `
+    -IncludeBucket
 
-# 3. EC2-webservers (afhankelijk van EFS, ELK en RDS voor de installatie via UserData)
+# 2b. Config-bestanden uploaden naar S3
+#     EC2 en ASG-instances halen deze op via 'aws s3 cp' in hun UserData.
+#     Zo staan ze als losse bestanden in Git, zonder heredoc-problemen in de YAML.
+Write-Section "Config-bestanden uploaden naar S3"
+$ConfigDir = Join-Path $PSScriptRoot "config"
+
+foreach ($ConfigFile in @("nginx-cloudshirt.conf", "cloudshirt.service", "filebeat-system.yml", "elastic.repo")) {
+    $LocalPath = Join-Path $ConfigDir $ConfigFile
+    if (-not (Test-Path $LocalPath)) {
+        Write-Output "FOUT: config-bestand niet gevonden: $LocalPath"
+        exit 1
+    }
+    aws s3 cp $LocalPath "s3://$BucketName/config/$ConfigFile" --region $Region
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output "FOUT: uploaden van '$ConfigFile' naar S3 mislukt."
+        exit 1
+    }
+    Write-Output "  Geupload: config/$ConfigFile"
+}
+
+# Scripts uploaden naar S3
+# EC2 en ASG-instances halen deze op via 'aws s3 cp' in hun UserData.
+# Uploaden vanuit de root van de assignment-map (naast de CloudFormation-templates).
+Write-Section "Scripts uploaden naar S3"
+foreach ($ScriptFile in @("export-orders.sh", "configure-aws.sh")) {
+    $LocalPath = Join-Path $PSScriptRoot $ScriptFile
+    if (-not (Test-Path $LocalPath)) {
+        Write-Output "FOUT: script niet gevonden: $LocalPath"
+        exit 1
+    }
+    aws s3 cp $LocalPath "s3://$BucketName/scripts/$ScriptFile" --region $Region
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output "FOUT: uploaden van '$ScriptFile' naar S3 mislukt."
+        exit 1
+    }
+    Write-Output "  Geupload: scripts/$ScriptFile"
+}
+
+# 3. EC2-webservers (afhankelijk van EFS, ELK, RDS en S3 met config-bestanden)
 Write-Output "Stap 3/7 - EC2-webservers"
 Invoke-StackDeployment -StackName "cloudshirt-ec2" -TemplateFile ".\cloudshirt-ec2.yml" `
     -IncludeCredentials -IncludeBucket
 
-# 4. S3-bucket voor exports en ALB access logs
-Write-Output "Stap 4/7 - S3-bucket"
-Invoke-StackDeployment -StackName "cloudshirt-s3" -TemplateFile ".\cloudshirt-s3.yml" `
-    -IncludeBucket
-
-# 5. Load Balancer (afhankelijk van de EC2-instances als target)
-Write-Output "Stap 5/7 - Load Balancer"
+# 4. Load Balancer (afhankelijk van de EC2-instances als target)
+Write-Output "Stap 4/7 - Load Balancer"
 Invoke-StackDeployment -StackName "cloudshirt-lb" -TemplateFile ".\cloudshirt-loadbalancer.yml"
 
-# 6. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
-Write-Output "Stap 6/7 - Auto Scaling Group"
+# 5. Auto Scaling Group (afhankelijk van LB-target group en alle gedeelde services)
+Write-Output "Stap 5/7 - Auto Scaling Group"
 Invoke-StackDeployment -StackName "cloudshirt-asg" -TemplateFile ".\cloudshirt-asg.yml" `
     -IncludeCredentials -IncludeBucket
 
-# 7. Serverless Lambda export-monitor (REQ-08)
-#    Afhankelijk van cloudshirt-s3 (bucket moet bestaan voor de Lambda wordt aangemaakt)
-Write-Output "Stap 7/7 - Serverless export-monitor (REQ-08)"
+# 6. Lambda export-monitor (REQ-08): afhankelijk van cloudshirt-s3 (bucket moet bestaan)
+Write-Output "Stap 6/7 - Lambda export-monitor"
 Invoke-StackDeployment -StackName "cloudshirt-serverless" -TemplateFile ".\cloudshirt-serverless.yml" `
-    -IncludeBucket
+    -IncludeBucket -IncludeLambdaRole
 
 # ---------------------------------------------------------------------------
 # Klaar
@@ -335,17 +382,70 @@ Write-Output "Alle stacks zijn succesvol gedeployt."
 Write-Output ""
 Write-Output "Vereisten afgevinkt:"
 Write-Output "  REQ-01  HA over meerdere AZ's met ALB"
-Write-Output "  REQ-02  Auto Scaling spike-traffic (6-8 PM ET)"
-Write-Output "  REQ-03  EFS voor gedeelde logbestanden"
-Write-Output "  REQ-04  RDS SQL Server via CloudFormation (IaC)"
-Write-Output "  REQ-05  ELK Stack v8.x monitoring"
-Write-Output "  REQ-06  Filebeat -> Logstash (optioneel, aanwezig)"
-Write-Output "  REQ-07  Dagelijkse order-export naar S3 (bcp cron)"
+Write-Output "  REQ-02  Auto Scaling spike-traffic (18-20 ET, scheduled)"
+Write-Output "  REQ-03  EFS voor gedeelde logbestanden (nginx-logs)"
+Write-Output "  REQ-04  RDS PostgreSQL 18 via CloudFormation (IaC)"
+Write-Output "  REQ-05  ELK Stack v8.x (Elasticsearch, Logstash, Kibana)"
+Write-Output "  REQ-06  Filebeat -> Logstash centrale logverwerking"
+Write-Output "  REQ-07  Dagelijkse psql order-export naar S3 (cron 02:00)"
 Write-Output "  REQ-08  Serverless Lambda export-monitor via EventBridge"
 Write-Output ""
+
+# ALB-URL ophalen en tonen
+$AlbDns = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-lb" `
+    --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDNSName'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
+    Write-Output "CloudShirt applicatie-URL:"
+    Write-Output "  http://$AlbDns"
+} else {
+    Write-Output "Haal de ALB-URL op via:"
+    Write-Output "  aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
+}
+
+# Target health tonen voor snelle troubleshooting
+$TargetGroupArn = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-lb" `
+    --query "Stacks[0].Outputs[?OutputKey=='WebTargetGroup'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
+    Write-Output ""
+    Write-Output "ALB target health:"
+    aws elbv2 describe-target-health `
+        --target-group-arn $TargetGroupArn `
+        --query "TargetHealthDescriptions[].{Instance:Target.Id,Status:TargetHealth.State,Reden:TargetHealth.Reason}" `
+        --output table
+}
+
+# Lambda-functienaam tonen
+$LambdaName = aws cloudformation describe-stacks `
+    --stack-name "cloudshirt-serverless" `
+    --query "Stacks[0].Outputs[?OutputKey=='LambdaFunctionName'].OutputValue" `
+    --output text 2>$null
+
+if (-not [string]::IsNullOrWhiteSpace($LambdaName)) {
+    $SnsArn = aws cloudformation describe-stacks `
+        --stack-name "cloudshirt-serverless" `
+        --query "Stacks[0].Outputs[?OutputKey=='SNSTopicArn'].OutputValue" `
+        --output text 2>$null
+
+    Write-Output ""
+    Write-Output "Serverless Lambda (REQ-08):"
+    Write-Output "  Functienaam : $LambdaName"
+    Write-Output "  SNS-topic   : $SnsArn"
+    Write-Output "  Logs        : aws logs tail /aws/lambda/$LambdaName --follow"
+    Write-Output "  Testen      : aws lambda invoke --function-name $LambdaName /tmp/lambda-out.json; cat /tmp/lambda-out.json"
+}
+
+Write-Output ""
 Write-Output "Volgende stappen:"
-Write-Output "  1. Haal de ALB-URL op:"
-Write-Output "     aws cloudformation describe-stacks --stack-name cloudshirt-lb --query 'Stacks[0].Outputs'"
-Write-Output "  2. Open de URL in je browser om de CloudShirt-applicatie te testen."
-Write-Output "  3. Controleer Kibana (poort 5601 op de ELK-server) voor logs."
-Write-Output "  4. Controleer CloudWatch Logs voor de Lambda export-monitor resultaten."
+Write-Output "  1. Wacht 15-20 minuten totdat de EC2-instances de .NET-app hebben gebouwd."
+Write-Output "  2. Open de applicatie-URL hierboven in je browser."
+Write-Output "  3. Controleer Kibana op http://<ELK-IP>:5601 voor logs."
+Write-Output "  4. Bekijk CloudWatch Logs van de Lambda voor export-monitor resultaten."
+Write-Output ""
+Write-Output "Logs bekijken op een instance (vervang INSTANCE_ID):"
+Write-Output "  aws ec2 get-console-output --instance-id INSTANCE_ID --output text"

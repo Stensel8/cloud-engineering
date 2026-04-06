@@ -61,6 +61,9 @@ Resources:
         ImageId: !Ref AmiId
         IamInstanceProfile:
           Name: LabInstanceProfile
+        MetadataOptions:
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
         SecurityGroupIds:
           - !ImportValue cloudshirt-swarm-network:WorkerSecurityGroup
         TagSpecifications:

@@ -1,121 +1,51 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt serverless stack (REQ-08).
-  Een Lambda-functie controleert dagelijks om 03:00 UTC of de order-export
-  (REQ-07) succesvol naar S3 is geschreven en stuurt een SNS-melding.
-  Getriggerd door EventBridge (cron). Volledig serverless: geen servers,
-  geen beheer, automatisch schaalbaar.
+  CloudShirt Serverless (REQ-08). Lambda controleert dagelijks de S3
+  order-export en stuurt een SNS-melding via EventBridge.
 
-# ---------------------------------------------------------------------------
-# Parameters
-# ---------------------------------------------------------------------------
 Parameters:
 
   BucketName:
     Type: String
-    Description: Naam van de S3-bucket voor RDS-exports (zelfde als cloudshirt-s3)
+    Description: Naam van de S3-bucket voor RDS-exports
 
-  LambdaReservedConcurrency:
-    Type: Number
-    Default: 5
-    Description: Maximaal aantal gelijktijdige Lambda-uitvoeringen
+  LambdaRoleArn:
+    Type: String
+    Description: ARN van de bestaande IAM-role voor Lambda (AWS Academy LabRole)
 
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
 Resources:
 
-  # -------------------------------------------------------------------------
-  # SNS Topic — ontvangt export-statusmeldingen van de Lambda
-  # -------------------------------------------------------------------------
+  # SNS Topic: ontvangt export-statusmeldingen
   ExportNotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
       KmsMasterKeyId: alias/aws/sns
 
-  # -------------------------------------------------------------------------
-  # DLQ — ontvangt mislukte asynchrone Lambda-events
-  # -------------------------------------------------------------------------
+  # DLQ: vangt mislukte asynchrone Lambda-events op
   ExportMonitorDLQ:
     Type: AWS::SQS::Queue
     Properties:
       KmsMasterKeyId: alias/aws/sqs
 
-  # -------------------------------------------------------------------------
-  # IAM Role — minimale rechten voor de Lambda-functie
-  # -------------------------------------------------------------------------
-  ExportMonitorRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-      Policies:
-        - PolicyName: ExportMonitorPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Sid: S3ReadExport
-                Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !Sub arn:aws:s3:::${BucketName}
-                  - !Sub arn:aws:s3:::${BucketName}/*
-              - Sid: SnsPublish
-                Effect: Allow
-                Action: sns:Publish
-                Resource: !Ref ExportNotificationTopic
-
-  # -------------------------------------------------------------------------
-  # Lambda SG — alleen egress, geen inkomende poorten nodig
-  # -------------------------------------------------------------------------
-  ExportMonitorSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group voor CloudShirt export monitor Lambda
-      VpcId: !ImportValue cloudshirt-network:VPC
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-          Description: Allow outbound traffic for Lambda to reach AWS services
-
-  # -------------------------------------------------------------------------
-  # Lambda Function — controleert of orders.csv vandaag bijgewerkt is
-  #
-  # Logica:
-  #   1. Head-object op exports/orders.csv in S3
-  #   2. Vergelijk LastModified met de datum van vandaag (UTC)
-  #   3. Publiceer succes- of foutmelding naar SNS
-  # -------------------------------------------------------------------------
+  # Lambda: controleert dagelijks of orders.csv vandaag bijgewerkt is
   ExportMonitorFunction:
     Type: AWS::Lambda::Function
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_117
+            comment: "Lambda in VPC voegt onnodige complexiteit toe; S3 en SNS zijn bereikbaar via public endpoints"
+          - id: CKV_AWS_173
+            comment: "Lambda KMS env var encryptie vereist KMS-rechten, niet beschikbaar in student lab"
     Properties:
-      Description: >
-        Controleert dagelijks of de CloudShirt order-export naar S3 is geslaagd
-        en stuurt een SNS-melding met de status.
+      Description: Controleert de CloudShirt order-export en stuurt een SNS-melding.
       Runtime: python3.12
       Handler: index.handler
-      Role: !GetAtt ExportMonitorRole.Arn
+      Role: !Ref LambdaRoleArn
       Timeout: 30
-      KmsKeyArn: alias/aws/lambda
-      ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
+      ReservedConcurrentExecutions: 5
       DeadLetterConfig:
         TargetArn: !GetAtt ExportMonitorDLQ.Arn
-      VpcConfig:
-        SubnetIds:
-          - !ImportValue cloudshirt-network:CloudShirtFirstPrivateSubnet
-          - !ImportValue cloudshirt-network:CloudShirtSecondPrivateSubnet
-        SecurityGroupIds:
-          - !Ref ExportMonitorSecurityGroup
       Environment:
         Variables:
           BUCKET_NAME: !Ref BucketName
@@ -154,47 +84,37 @@ Resources:
                       subject = 'CloudShirt export: GEMIST'
                       message = (
                           f'De order-export is vandaag NIET bijgewerkt.\n\n'
-                          f'Datum vandaag:   {today}\n'
-                          f'Laatste update:  {last_modified}\n\n'
+                          f'Datum vandaag:  {today}\n'
+                          f'Laatste update: {last_modified}\n\n'
                           f'Controleer de cron-job op de EC2-instances '
-                          f'(/etc/cron.d/cloudshirt-export) en het logbestand '
-                          f'/var/log/export-orders.log.'
+                          f'(/etc/cron.d/cloudshirt-export).'
                       )
 
-              except s3.exceptions.ClientError as e:
-                  error_code = e.response['Error']['Code']
-                  subject    = 'CloudShirt export: FOUT'
-                  message    = (
+              except Exception as e:
+                  subject = 'CloudShirt export: FOUT'
+                  message = (
                       f'Exportbestand niet gevonden of niet toegankelijk.\n\n'
-                      f'Bucket:     {bucket}\n'
-                      f'Key:        {key}\n'
-                      f'Foutcode:   {error_code}\n'
-                      f'Detail:     {e}\n\n'
-                      f'Controleer of de S3-bucket bestaat en de cron-job actief is.'
+                      f'Bucket: {bucket}\n'
+                      f'Key:    {key}\n'
+                      f'Fout:   {e}\n'
                   )
 
               sns.publish(TopicArn=topic_arn, Subject=subject, Message=message)
               print(f'[{subject}] {message}')
               return {'statusCode': 200, 'body': subject}
 
-  # -------------------------------------------------------------------------
-  # EventBridge Rule — dagelijkse trigger om 03:00 UTC
-  # (één uur na de export-cron op 02:00 UTC, genoeg marge)
-  # -------------------------------------------------------------------------
+  # EventBridge: dagelijkse trigger om 03:00 UTC
   ExportMonitorSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Description: >
-        Triggert de Lambda dagelijks om 03:00 UTC om de export-status te controleren.
+      Description: Triggert de Lambda dagelijks om 03:00 UTC.
       ScheduleExpression: cron(0 3 * * ? *)
       State: ENABLED
       Targets:
         - Id: ExportMonitorLambdaTarget
           Arn: !GetAtt ExportMonitorFunction.Arn
 
-  # -------------------------------------------------------------------------
-  # Lambda Permission — staat EventBridge toe de Lambda aan te roepen
-  # -------------------------------------------------------------------------
+  # Geeft EventBridge toestemming om de Lambda aan te roepen
   ExportMonitorPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -203,9 +123,6 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt ExportMonitorSchedule.Arn
 
-# ---------------------------------------------------------------------------
-# Outputs
-# ---------------------------------------------------------------------------
 Outputs:
 
   LambdaFunctionName:
@@ -214,20 +131,12 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}:LambdaFunction"
 
-  LambdaFunctionArn:
-    Description: ARN van de Lambda-functie
-    Value: !GetAtt ExportMonitorFunction.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}:LambdaArn"
-
   SNSTopicArn:
     Description: ARN van het SNS-topic voor export-meldingen
     Value: !Ref ExportNotificationTopic
     Export:
       Name: !Sub "${AWS::StackName}:SNSTopic"
 
-  DeadLetterQueueArn:
-    Description: ARN van de DLQ voor mislukte Lambda-events
-    Value: !GetAtt ExportMonitorDLQ.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}:DLQArn"
+  DLQUrl:
+    Description: URL van de SQS Dead Letter Queue
+    Value: !Ref ExportMonitorDLQ
