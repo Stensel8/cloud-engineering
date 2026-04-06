@@ -16,14 +16,14 @@ Het leerdoel was: werken met orkestratie- en configuratietools (Kubernetes, Terr
 
 | Requirement | Status | Bewijs |
 |---|---|---|
-| REQ-15: AWS-resources uitgerold met Terraform | Behaald | `terraform/modules/aws/` bevat modules voor het netwerk, de database, EFS, ELK en de Buildserver |
-| REQ-16: Applicatie uitgerold op GCP via IaC | Behaald | GKE-cluster uitgerold via Terraform; applicatie wordt via Ansible op het cluster gezet |
-| REQ-17: Gebruikers bereiken de applicatie via één extern IP-adres | Gedeeltelijk | Load balancer met statisch IP-adres is aangemaakt via Terraform, maar de koppeling met het cluster is niet volledig getest |
-| REQ-18: Docker-images gehost op Artifact Registry | Gedeeltelijk | Artifact Registry is aangemaakt via Terraform; het automatisch pushen van images is niet volledig werkend |
-| REQ-19: Kubernetes-cluster op GCP | Behaald | GKE-cluster uitgerold via Terraform in `europe-west4` |
-| REQ-20: Cluster met 5 replica's van de applicatie | Gedeeltelijk | Ansible-playbook configureert 5 replica's, maar Ansible werkt nog niet volledig |
-| REQ-21: Ansible configureert het Kubernetes-cluster | Gedeeltelijk | Playbook en rol zijn geschreven, maar de uitvoering loopt nog tegen problemen aan |
-| REQ-22: Ansible verzamelt logbestanden van de applicatie | Gedeeltelijk | Playbook is geschreven en haalt logs op via kubectl; upload naar GCS werkt nog niet betrouwbaar |
+| REQ-15: AWS-resources uitgerold met Terraform | Behaald | `terraform/modules/aws/` bevat vijf modules: `base_stack`, `rds-stack`, `efs_stack`, `elk_stack` en `buildserver_stack`. Elke module roept de bijbehorende CloudFormation-template aan uit `terraform/templates/`. `main.tf` stuurt de volgorde via `depends_on`. |
+| REQ-16: Applicatie uitgerold op GCP via IaC | Behaald | GKE-cluster aangemaakt in `terraform/modules/gcp/gke_cluster/main.tf`. Ansible-playbook `playbooks/gke_config.yml` haalt Terraform-outputs op, authenticeert met GCP en deployt de applicatie op het cluster via `include_role: gke_config`. |
+| REQ-17: Gebruikers bereiken de applicatie via één extern IP-adres | Gedeeltelijk | `terraform/modules/gcp/loadbalancer/main.tf` maakt een `google_compute_global_address`, backend service, URL map en forwarding rule aan. Het statische IP-adres wordt als Terraform-output beschikbaar gesteld via `output "external_ip"`. Koppeling met het GKE-cluster via Ingress-controller is niet volledig getest. |
+| REQ-18: Docker-images gehost op Artifact Registry | Gedeeltelijk | `terraform/modules/gcp/artifact_registry/main.tf` maakt een Docker-repository aan in `europe-west4`. Het image-pad `europe-west4-docker.pkg.dev/<project>/<repo>` wordt door Ansible dynamisch samengesteld in `playbooks/gke_config.yml`. Het automatisch pushen van images vanuit de Buildserver werkt nog niet volledig. |
+| REQ-19: Kubernetes-cluster op GCP | Behaald | `terraform/modules/gcp/gke_cluster/main.tf` definieert een GKE-cluster (`cloudshirt-gke`) in `europe-west4` met private nodes, Workload Identity, Calico network policy en Binary Authorization. Een node pool met twee `e2-medium`-nodes wordt apart aangemaakt. |
+| REQ-20: Cluster met 5 replica's van de applicatie | Gedeeltelijk | `ansible/roles/vars/main.yml` stelt `replica_count: 5` in. Dit wordt via de Jinja2-template `roles/gke_config/templates/deployment.yml.j2` in het Kubernetes Deployment-manifest gezet onder `spec.replicas`. Ansible werkt nog niet volledig, dus uitrol is niet bevestigd. |
+| REQ-21: Ansible configureert het Kubernetes-cluster | Gedeeltelijk | `playbooks/gke_config.yml` haalt Terraform-outputs op, stelt kubeconfig in via `gcloud container clusters get-credentials`, maakt de namespace aan, zet een RDS-secret en deployt beide services (`eshopwebmvc`, `eshoppublicapi`) via de rol `gke_config`. Ingress-manifest gebruikt `kubernetes.io/ingress.class: gce` met padregels voor `/` en `/api`. |
+| REQ-22: Ansible verzamelt logbestanden van de applicatie | Gedeeltelijk | `ansible/roles/log_collection/tasks/main.yml` haalt logs op met `kubernetes.core.k8s_log` voor elke pod in de namespace en schrijft ze weg als lokale `.log`-bestanden. Optioneel worden AWS CloudWatch-loggroepen opgehaald. Upload naar GCS via `gsutil cp` is geïmplementeerd maar werkt nog niet betrouwbaar. |
 
 ## Keuzes
 
