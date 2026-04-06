@@ -161,12 +161,14 @@ Resources:
 
           # Rolling update van actieve Swarm services (REQ-13)
           docker service update \
+            --with-registry-auth \
             --image "$ECR_WEB_URI:$DATE_TAG" \
             --update-parallelism 1 \
             --update-delay 30s \
             "cloudshirt_web" 2>/dev/null || echo "cloudshirt_web niet actief; update overgeslagen."
 
           docker service update \
+            --with-registry-auth \
             --image "$ECR_API_URI:$DATE_TAG" \
             --update-parallelism 1 \
             --update-delay 30s \
@@ -221,7 +223,7 @@ Resources:
           export ECR_WEB_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:latest"
           export ECR_API_IMAGE="${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}-api:latest"
           echo "[UserData] Deploying stack van docker-compose.swarm.yml..."
-          if docker stack deploy -c docker-compose.swarm.yml cloudshirt 2>&1; then
+          if docker stack deploy --with-registry-auth -c docker-compose.swarm.yml cloudshirt 2>&1; then
             echo "[UserData] Stack deploy geslaagd."
           else
             DEPLOY_EXIT=$?
