@@ -93,14 +93,14 @@ Bouw voort op Assignments 1 en 2. Gebruik Terraform en Ansible in een multi-clou
 
 | Requirement | Bewijs |
 |---|---|
-| REQ-15 - AWS-resources uitgerold met Terraform |  |
-| REQ-16 - Applicatie uitgerold op GCP via Terraform |  |
-| REQ-17 - Gebruikers bereiken applicatie via één extern IP-adres |  |
-| REQ-18 - Docker-images gehost op Artifact Registry |  |
-| REQ-19 - Kubernetes-cluster op GCP |  |
-| REQ-20 - Kubernetes-cluster: Master met 5 replica's |  |
-| REQ-21 - Ansible configureert het Kubernetes-cluster |  |
-| REQ-22 - Ansible verzamelt logbestanden |  |
+| REQ-15 - AWS-resources uitgerold met Terraform | [terraform/main.tf](Assignment%203%20-%20Orchestration/terraform/main.tf) roept vijf AWS-modules aan: `base_stack`, `rds-stack`, `efs_stack`, `elk_stack` en `buildserver_stack`, elk met een bijbehorende CloudFormation-template in [terraform/templates/](Assignment%203%20-%20Orchestration/terraform/templates/) |
+| REQ-16 - Applicatie uitgerold op GCP via Terraform | [terraform/modules/gcp/gke_cluster/main.tf](Assignment%203%20-%20Orchestration/terraform/modules/gcp/gke_cluster/main.tf) rolt het GKE-cluster uit; [ansible/playbooks/gke_config.yml](Assignment%203%20-%20Orchestration/ansible/playbooks/gke_config.yml) deployt de applicatie op het cluster via Terraform-outputs |
+| REQ-17 - Gebruikers bereiken applicatie via één extern IP-adres | [terraform/modules/gcp/loadbalancer/main.tf](Assignment%203%20-%20Orchestration/terraform/modules/gcp/loadbalancer/main.tf) maakt een `google_compute_global_address` aan met bijbehorende forwarding rule; het IP-adres wordt via `output "external_ip"` beschikbaar gesteld |
+| REQ-18 - Docker-images gehost op Artifact Registry | [terraform/modules/gcp/artifact_registry/main.tf](Assignment%203%20-%20Orchestration/terraform/modules/gcp/artifact_registry/main.tf) maakt een Docker-repository aan in `europe-west4`; het imagepad wordt dynamisch samengesteld in het Ansible-playbook |
+| REQ-19 - Kubernetes-cluster op GCP | [terraform/modules/gcp/gke_cluster/main.tf](Assignment%203%20-%20Orchestration/terraform/modules/gcp/gke_cluster/main.tf): GKE-cluster `cloudshirt-gke` in `europe-west4` met private nodes, Workload Identity, Calico network policy en Binary Authorization |
+| REQ-20 - Kubernetes-cluster: Master met 5 replica's | [ansible/roles/vars/main.yml](Assignment%203%20-%20Orchestration/ansible/roles/vars/main.yml): `replica_count: 5`; dit wordt via [ansible/roles/gke_config/templates/deployment.yml.j2](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/templates/deployment.yml.j2) ingevuld in `spec.replicas` van het Kubernetes Deployment-manifest |
+| REQ-21 - Ansible configureert het Kubernetes-cluster | [ansible/playbooks/gke_config.yml](Assignment%203%20-%20Orchestration/ansible/playbooks/gke_config.yml) haalt Terraform-outputs op, stelt kubeconfig in, maakt de namespace aan, zet een RDS-secret en deployt beide services via de rol [ansible/roles/gke_config/](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/); ingress via [ingress.yml.j2](Assignment%203%20-%20Orchestration/ansible/roles/gke_config/templates/ingress.yml.j2) |
+| REQ-22 - Ansible verzamelt logbestanden | [ansible/roles/log_collection/tasks/main.yml](Assignment%203%20-%20Orchestration/ansible/roles/log_collection/tasks/main.yml) haalt logs op per pod via `kubernetes.core.k8s_log`, schrijft ze weg als lokale `.log`-bestanden en uploadt ze naar GCS via `gsutil cp` |
 
 ---
 
