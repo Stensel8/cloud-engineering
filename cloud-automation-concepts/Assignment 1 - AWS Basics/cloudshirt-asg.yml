@@ -193,21 +193,25 @@ Resources:
               systemctl enable filebeat
               systemctl restart filebeat
 
-              # ── Scripts downloaden en cron-job instellen (REQ-07) ─────────────────────────
+              # ── Scripts ophalen van S3 en cron-job instellen (REQ-07) ────────────────────
+              # Scripts zijn tijdens deployment geupload naar S3 door Deploy-CloudShirt.ps1.
+              # Zo is de deployment deterministisch: geen afhankelijkheid van externe Git-URL.
               cd /home/ec2-user
 
-              curl -fsSL -O https://raw.githubusercontent.com/Stensel8/cloud-engineering/main/cloud-automation-concepts/Assignment%201%20-%20AWS%20Basics/export-orders.sh
-              chmod +x export-orders.sh
+              aws s3 cp "s3://${BucketName}/scripts/export-orders.sh"  export-orders.sh
+              aws s3 cp "s3://${BucketName}/scripts/configure-aws.sh"  configure-aws.sh
 
-              curl -fsSL -O https://raw.githubusercontent.com/Stensel8/cloud-engineering/main/cloud-automation-concepts/Assignment%201%20-%20AWS%20Basics/configure-aws.sh
+              # AWS-credentials invullen in configure-aws.sh (placeholders vervangen)
               sed -i \
                   -e "s|<acceskey>|${AccessKey}|g" \
                   -e "s|<secretaccesskey>|${SecretKey}|g" \
                   -e "s|<sessiontoken>|${SessionToken}|g" \
                   -e "s|<accountid>|${AccountId}|g" \
-                  /home/ec2-user/configure-aws.sh
-              chmod +x configure-aws.sh
+                  configure-aws.sh
 
+              chmod +x export-orders.sh configure-aws.sh
+
+              # Dagelijkse cron-job instellen: export draait elke nacht om 02:00
               echo "0 2 * * * ec2-user /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1" \
                   > /etc/cron.d/cloudshirt-export
 

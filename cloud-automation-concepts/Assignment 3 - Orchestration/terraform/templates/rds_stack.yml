@@ -53,6 +53,8 @@ Resources:
         skip:
           - id: CKV_AWS_157
             comment: "SQL Server Express (sqlserver-ex) does not support Multi-AZ"
+          - id: CKV_AWS_118
+            comment: "Enhanced monitoring uitgeschakeld om kosten te besparen in lab-omgeving"
     Properties:
       DBInstanceIdentifier: cloudshirt-db
       Engine: sqlserver-ex

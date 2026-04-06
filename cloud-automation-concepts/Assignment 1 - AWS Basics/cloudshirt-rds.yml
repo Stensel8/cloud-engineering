@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >
-  CloudShirt RDS (REQ-04). PostgreSQL 16 in private subnets,
+  CloudShirt RDS (REQ-04). PostgreSQL 18 in private subnets,
   credentials via Secrets Manager.
 
 # ---------------------------------------------------------------------------
@@ -38,6 +38,11 @@ Resources:
   # zodat het wachtwoord nooit in de CloudFormation-template of UserData staat.
   CloudShirtDBSecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_149
+            comment: "KMS CMK-encryptie niet beschikbaar in AWS Academy student lab"
     Properties:
       Description: Credentials for CloudShirt RDS master user
       GenerateSecretString:
@@ -47,12 +52,23 @@ Resources:
         ExcludeCharacters: "\"@/\\;'"  # ; en ' breken ADO.NET/Npgsql connection strings
 
   # ── RDS PostgreSQL-instance ───────────────────────────────────────────────
-  # PostgreSQL 16 — de database die de CloudShirt-applicatie verwacht.
+  # PostgreSQL 18 — de database die de CloudShirt-applicatie verwacht.
   # db.t3.micro is voldoende voor de demo-omgeving (REQ-04).
   # Multi-AZ en monitoring zijn uitgeschakeld om kosten te besparen.
   # Opslag is versleuteld; automatische back-up bewaart 1 dag.
   CloudShirtRDSInstance:
     Type: AWS::RDS::DBInstance
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_157
+            comment: "Multi-AZ uitgeschakeld om kosten te besparen in lab-omgeving"
+          - id: CKV_AWS_161
+            comment: "IAM-authenticatie niet beschikbaar in AWS Academy student lab; credentials via Secrets Manager"
+          - id: CKV_AWS_162
+            comment: "IAM-authenticatie niet beschikbaar in AWS Academy student lab; credentials via Secrets Manager"
+          - id: CKV_AWS_118
+            comment: "Enhanced monitoring uitgeschakeld om kosten te besparen in lab-omgeving"
     Properties:
       DBInstanceIdentifier: cloudshirt-db
       Engine: postgres

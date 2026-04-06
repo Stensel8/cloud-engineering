@@ -243,6 +243,8 @@ Resources:
         skip:
           - id: CKV_AWS_24
             comment: "Poort 80 moet open zijn voor publieke ALB/webserver-traffic"
+          - id: CKV_AWS_260
+            comment: "Poort 80 bewust open: publieke web-app in HTTP lab-omgeving"
     Properties:
       GroupDescription: Sta SSH, HTTP en HTTPS toe
       VpcId: !Ref CloudShirtVpc

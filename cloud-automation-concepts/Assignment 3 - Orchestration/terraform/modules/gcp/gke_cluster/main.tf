@@ -1,8 +1,12 @@
 resource "google_container_cluster" "primary" {
-  name        = "cloudshirt-gke"
-  location    = "europe-west4"
-  network     = var.vpc_id
-  subnetwork  = var.subnet_id
+  #checkov:skip=CKV_GCP_65:Google Groups RBAC vereist Google Workspace, niet beschikbaar in student lab
+  #checkov:skip=CKV_GCP_69:GKE Metadata Server is geconfigureerd op node pool niveau
+  #checkov:skip=CKV_GCP_18:Control plane endpoint publiek voor toegang vanuit student lab
+  #checkov:skip=CKV_GCP_68:Secure Boot is geconfigureerd op node pool niveau
+  name       = "cloudshirt-gke"
+  location   = "europe-west4"
+  network    = var.vpc_id
+  subnetwork = var.subnet_id
 
   remove_default_node_pool    = true
   initial_node_count          = 1
@@ -33,9 +37,11 @@ resource "google_container_cluster" "primary" {
       cidr_block   = "10.0.0.0/16"
       display_name = "vpc-internal"
     }
+    # Tijdelijk open voor beheer vanuit elke locatie (lab-omgeving).
+    # In productie beperken tot specifieke beheer-IP's.
     cidr_blocks {
       cidr_block   = "0.0.0.0/0"
-      display_name = "allow-all-temp"
+      display_name = "allow-all-lab"
     }
   }
 
@@ -73,9 +79,9 @@ resource "google_container_cluster" "primary" {
 data "google_client_config" "current" {}
 
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "primary-node-pool"
-  location   = "europe-west4"
-  cluster    = google_container_cluster.primary.name
+  name     = "primary-node-pool"
+  location = "europe-west4"
+  cluster  = google_container_cluster.primary.name
 
   node_count = 2
 

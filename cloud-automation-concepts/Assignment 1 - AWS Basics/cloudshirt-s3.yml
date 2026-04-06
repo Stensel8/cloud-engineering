@@ -28,6 +28,8 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LoggingConfiguration:
+        LogFilePrefix: access-logs/
 
 # ---------------------------------------------------------------------------
 # Outputs

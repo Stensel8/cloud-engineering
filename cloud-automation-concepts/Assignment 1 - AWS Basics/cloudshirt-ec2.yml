@@ -198,11 +198,15 @@ Resources:
               systemctl enable filebeat
               systemctl restart filebeat
 
-              # ── Export-script en dagelijkse cron-job (REQ-07) ─────────────────────────────
+              # ── Export-script ophalen van S3 en cron-job instellen (REQ-07) ──────────────
+              # Script is tijdens deployment geupload naar S3 door Deploy-CloudShirt.ps1.
+              # Zo is de deployment deterministisch: geen afhankelijkheid van externe Git-URL.
               cd /home/ec2-user
-              curl -fsSL -O https://raw.githubusercontent.com/Stensel8/cloud-engineering/main/cloud-automation-concepts/Assignment%201%20-%20AWS%20Basics/export-orders.sh
+
+              aws s3 cp "s3://${BucketName}/scripts/export-orders.sh"  export-orders.sh
               chmod +x export-orders.sh
 
+              # Dagelijkse cron-job instellen: export draait elke nacht om 02:00
               echo "0 2 * * * ec2-user /home/ec2-user/export-orders.sh >> /var/log/export-orders.log 2>&1" \
                   > /etc/cron.d/cloudshirt-export
 

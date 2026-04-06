@@ -16,6 +16,7 @@ resource "google_storage_bucket" "logs" {
 }
 
 resource "google_storage_bucket" "logs_access" {
+  #checkov:skip=CKV_GCP_62:Dit is de logging-doelbucket zelf; circulair loggen niet mogelijk
   name                        = "cloudshirt-logs-access-${random_id.suffix.hex}"
   location                    = "EU"
   force_destroy               = true

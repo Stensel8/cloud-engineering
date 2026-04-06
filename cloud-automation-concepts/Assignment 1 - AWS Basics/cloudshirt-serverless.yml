@@ -18,20 +18,32 @@ Resources:
   # SNS Topic: ontvangt export-statusmeldingen
   ExportNotificationTopic:
     Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId: alias/aws/sns
 
   # DLQ: vangt mislukte asynchrone Lambda-events op
   ExportMonitorDLQ:
     Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
 
   # Lambda: controleert dagelijks of orders.csv vandaag bijgewerkt is
   ExportMonitorFunction:
     Type: AWS::Lambda::Function
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_117
+            comment: "Lambda in VPC voegt onnodige complexiteit toe; S3 en SNS zijn bereikbaar via public endpoints"
+          - id: CKV_AWS_173
+            comment: "Lambda KMS env var encryptie vereist KMS-rechten, niet beschikbaar in student lab"
     Properties:
       Description: Controleert de CloudShirt order-export en stuurt een SNS-melding.
       Runtime: python3.12
       Handler: index.handler
       Role: !Ref LambdaRoleArn
       Timeout: 30
+      ReservedConcurrentExecutions: 5
       DeadLetterConfig:
         TargetArn: !GetAtt ExportMonitorDLQ.Arn
       Environment:

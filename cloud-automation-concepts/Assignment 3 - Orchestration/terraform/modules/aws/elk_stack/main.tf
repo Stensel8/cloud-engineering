@@ -4,8 +4,8 @@ resource "aws_cloudformation_stack" "elk" {
   notification_arns = var.sns_arn != "" ? [var.sns_arn] : []
 
   tags = {
-    Project      = "CloudShirt"
-    Environment  = "prod"
+    Project     = "CloudShirt"
+    Environment = "prod"
   }
 }
 

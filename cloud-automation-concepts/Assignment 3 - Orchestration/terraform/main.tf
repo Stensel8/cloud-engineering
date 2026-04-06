@@ -7,18 +7,18 @@ module "network" {
 }
 
 module "artifact_registry" {
-  source       = "./modules/gcp/artifact_registry"
-  project_id   = var.project_id
-  gcp_region   = var.gcp_region
+  source        = "./modules/gcp/artifact_registry"
+  project_id    = var.project_id
+  gcp_region    = var.gcp_region
   gcp_repo_name = var.gcp_repo_name
-  depends_on   = [module.network]   # <-- eerst netwerk
+  depends_on    = [module.network] # <-- eerst netwerk
 }
 
 module "gke_cluster" {
   source     = "./modules/gcp/gke_cluster"
   vpc_id     = module.network.vpc_id
-  subnet_id  = module.network.subnet_id 
-  depends_on = [module.artifact_registry]  # <-- pas na artifact
+  subnet_id  = module.network.subnet_id
+  depends_on = [module.artifact_registry] # <-- pas na artifact
 }
 
 module "loadbalancer" {
@@ -33,8 +33,8 @@ module "loadbalancer" {
 ######################################
 
 module "base" {
-  source       = "./modules/aws/base_stack"
-  sns_arn      = var.cfn_notification_sns_arn
+  source  = "./modules/aws/base_stack"
+  sns_arn = var.cfn_notification_sns_arn
 }
 
 module "rds" {

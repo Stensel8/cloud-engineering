@@ -337,6 +337,24 @@ foreach ($ConfigFile in @("nginx-cloudshirt.conf", "cloudshirt.service", "filebe
     Write-Output "  Geupload: config/$ConfigFile"
 }
 
+# Scripts uploaden naar S3
+# EC2 en ASG-instances halen deze op via 'aws s3 cp' in hun UserData.
+# Uploaden vanuit de root van de assignment-map (naast de CloudFormation-templates).
+Write-Section "Scripts uploaden naar S3"
+foreach ($ScriptFile in @("export-orders.sh", "configure-aws.sh")) {
+    $LocalPath = Join-Path $PSScriptRoot $ScriptFile
+    if (-not (Test-Path $LocalPath)) {
+        Write-Output "FOUT: script niet gevonden: $LocalPath"
+        exit 1
+    }
+    aws s3 cp $LocalPath "s3://$BucketName/scripts/$ScriptFile" --region $Region
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output "FOUT: uploaden van '$ScriptFile' naar S3 mislukt."
+        exit 1
+    }
+    Write-Output "  Geupload: scripts/$ScriptFile"
+}
+
 # 3. EC2-webservers (afhankelijk van EFS, ELK, RDS en S3 met config-bestanden)
 Write-Output "Stap 3/7 - EC2-webservers"
 Invoke-StackDeployment -StackName "cloudshirt-ec2" -TemplateFile ".\cloudshirt-ec2.yml" `

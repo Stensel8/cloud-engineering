@@ -43,6 +43,11 @@ Resources:
   # Publiek toegankelijk, verdeeld over twee publieke subnets (twee AZ's).
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_91
+            comment: "ALB access logging naar S3 vereist bucket policy via IAM, niet beschikbaar in student lab"
     Properties:
       Name: cloudshirt-alb
       Subnets:
@@ -59,6 +64,13 @@ Resources:
   # ── HTTP-listener: direct doorsturen naar target group ───────────────────
   HTTPListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_2
+            comment: "HTTP-only lab/demo omgeving, geen certificaat beschikbaar"
+          - id: CKV_AWS_103
+            comment: "HTTP-only lab/demo omgeving, geen certificaat beschikbaar"
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 80
