@@ -45,15 +45,15 @@ Voor de serverless Lambda hebben we de al bestaande `LabRole` van AWS Academy ge
 
 ## Bewijs
 
-![Succesvolle deployment via script](Script%20van%20assignment%201%20toont%20succesvolle%20deployment.png)
+![Succesvolle deployment via script](Script%20van%20assignment%201%20toont%20succesvolle%20deployment.avif)
 
 Het deploy-script rolt alle stacks succesvol uit en geeft de URL van de load balancer terug.
 
-![CloudShirt applicatie draait](Cloudshirt%20assignment%201%20draait..png)
+![CloudShirt applicatie draait](Cloudshirt%20assignment%201%20draait..avif)
 
 De CloudShirt-applicatie is bereikbaar via de load balancer.
 
-![Aankoop doen in de CloudShirt-app](Het%20doen%20van%20een%20aankoop%20in%20de%20CloudShirt-app.png)
+![Aankoop doen in de CloudShirt-app](Het%20doen%20van%20een%20aankoop%20in%20de%20CloudShirt-app.avif)
 
 Een aankoop wordt afgerond in de winkelwagen.
 
