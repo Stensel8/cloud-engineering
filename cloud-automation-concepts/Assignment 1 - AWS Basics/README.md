@@ -1,83 +1,43 @@
 # Assignment 1: AWS Basics
 
+## Over deze opdracht
+
+De opdracht was om de CloudShirt-webshop volledig geautomatiseerd in AWS uit te rollen, met alles wat daarbij hoort: een database, opslag, monitoring, load balancing en schaalbaarheid.
+
+Dat klinkt misschien eenvoudig, maar de originele CloudShirt-applicatie bleek helemaal niet klaar te zijn voor een AWS-omgeving. Er waren allerlei problemen: de applicatie kon niet connecten met een externe database, configuratie was hardcoded, en de deployment-documentatie was onvolledig.
+
+Na veel uitzoekwerk hebben we besloten om een eigen fork te maken van de applicatie, onder [Stensel8/CloudShirt](https://github.com/Stensel8/CloudShirt). Daar hebben we de nodige aanpassingen en fixes in aangebracht, zodat de app wel goed uitgerold kon worden. Na heel wat gedoe is dit uiteindelijk gelukt, en dat is ook meteen het grootste leermoment van deze opdracht.
+
+De hele AWS-infrastructuur is beschreven in CloudFormation-templates en wordt uitgerold via een PowerShell-script (`Deploy-CloudShirt.ps1`). Alles draait geautomatiseerd: je hoeft alleen de credentials neer te zetten en het script te starten.
+
 ## Leerdoelen
 
-De module heeft de volgende leerdoelen geformuleerd:
+Het leerdoel was: resources op een geautomatiseerde manier inrichten in AWS, inclusief onderlinge afhankelijkheden.
 
-- (Onderling afhankelijke) resources op een geautomatiseerde manier inrichten in AWS.
-
-**Behaald.** Alle AWS-resources zijn ingericht via CloudFormation-templates die via een PowerShell-script in de juiste volgorde worden uitgerold. Stacks importeren elkaars outputs via `!ImportValue`, waardoor de afhankelijkheden expliciet en reproduceerbaar zijn.
+**Behaald.** Alle stacks importeren elkaars outputs, zodat de volgorde van uitrollen gegarandeerd goed is. Het script wacht ook na elke stap op de bevestiging vanuit AWS voordat de volgende stap start.
 
 ## Requirements
 
 | Requirement | Status | Bewijs |
 |---|---|---|
-| REQ-01: High availability over meerdere AZ's via een URL | Behaald | `cloudshirt-ec2.yml` (twee instances over AZ-a en AZ-b), `cloudshirt-loadbalancer.yml` (ALB met sticky sessions) |
-| REQ-02: Autoscaling tijdens piekuren (18:00-20:00 Eastern) | Behaald | `cloudshirt-asg.yml` (scheduled scaling: scale-out 18:00, scale-in 20:30 ET) |
-| REQ-03: EFS voor dagelijkse opslag van webserverlogs | Behaald | `cloudshirt-efs.yml` (EFS mount op `/mnt/efs/logs`, nginx-logs worden hier naartoe geschreven) |
-| REQ-04: RDS via IaC | Behaald | `cloudshirt-rds.yml` (PostgreSQL 16 via Secrets Manager, multi-AZ subnet group) |
-| REQ-05: Monitoringoplossing (ELK) via IaC | Behaald | `cloudshirt-elk.yml` (Elasticsearch + Logstash + Kibana op één EC2-instance) |
-| REQ-06: Logs zichtbaar in Elastic Stack via Filebeat | Behaald | Filebeat-configuratie in `config/filebeat-system.yml`, geinstalleerd via UserData in `cloudshirt-ec2.yml` |
-| REQ-07: Scriptmatige export ordertabel naar S3 | Behaald | `export-orders.sh` (psql-dump, dagelijks via cron om 02:00) |
-| REQ-08: AWS serverless-applicatie | Behaald | `cloudshirt-serverless.yml` (Lambda + EventBridge-regel, controleert of S3-export aanwezig is en stuurt SNS-notificatie) |
+| REQ-01: Hoge beschikbaarheid over meerdere zones via één URL | Behaald | Twee webservers in aparte beschikbaarheidszones, verdeeld via een load balancer met sticky sessions |
+| REQ-02: Automatisch opschalen tijdens piektijden (18:00-20:00 Eastern) | Behaald | Auto Scaling Group met een geplande actie: opschalen om 18:00, terugschalen om 20:30 |
+| REQ-03: EFS voor het dagelijks opslaan van webserverlogs | Behaald | EFS-bestandssysteem gekoppeld op de webservers; nginx schrijft logs naar dit gedeelde systeem |
+| REQ-04: RDS-database via IaC | Behaald | PostgreSQL 18-database uitgerold via CloudFormation, wachtwoord opgeslagen in Secrets Manager |
+| REQ-05: Monitoringoplossing (ELK Stack v8.x) via IaC | Behaald | Elasticsearch, Logstash en Kibana uitgerold via een aparte CloudFormation-stack |
+| REQ-06: Logs zichtbaar in Kibana via Filebeat (optioneel) | Behaald | Filebeat geinstalleerd op de webservers; stuurt logs door naar Logstash |
+| REQ-07: Scriptmatige export van de ordertabel naar S3 | Behaald | `export-orders.sh` doet dagelijks om 02:00 een export via psql naar de S3-bucket |
+| REQ-08: Serverless applicatie in AWS | Behaald | Lambda-functie die via een timer controleert of de dagelijkse export aanwezig is en een melding stuurt als dat niet zo is |
 
-## Belangrijkste keuzes
+## Keuzes
 
-**CloudFormation als IaC-tool.** Gekozen omdat de opdracht expliciet AWS-kennis vereist en CloudFormation native in AWS is geintegreerd. Geen extra tooling nodig.
+We hebben alles in CloudFormation geschreven omdat dat de standaard AWS-aanpak is en geen extra tools vereist. De stacks zijn opgedeeld per verantwoordelijkheid (netwerk, database, opslag, webservers, enzovoort), zodat je ze ook los van elkaar kunt bijwerken.
 
-**Deployment via PowerShell-script (`Deploy-CloudShirt.ps1`).** Het script detecteert automatisch of een stack al bestaat en doet dan een update in plaats van een nieuwe aanmaak. Stacks in `ROLLBACK_COMPLETE` worden automatisch verwijderd en opnieuw aangemaakt. Zo is het script volledig idempotent.
+Configuratiebestanden voor nginx en Filebeat staan als losse bestanden in Git onder `config/`. Het deploy-script uploadt ze naar S3, waarna de servers ze bij het opstarten ophalen. Dit is overzichtelijker dan alles in de templates stoppen.
 
-**Config-bestanden in S3.** Nginx-configuratie, Filebeat-config en het systemd-unit-bestand staan als losse bestanden in Git onder `config/`. Het deploy-script uploadt ze naar S3; de EC2-instances halen ze op via `aws s3 cp` in hun UserData. Dit voorkomt heredoc-problemen in YAML en maakt de configuratie onafhankelijk van de templategrootte.
+ELK draait op een aparte server omdat het anders te veel geheugen zou vreten van de webservers.
 
-**ELK op een aparte EC2-instance.** ELK is resource-intensief. Door het op een los instance te draaien, heeft de webserver geen last van het resource-gebruik van Elasticsearch en Logstash.
-
-**LabRole voor Lambda.** AWS Academy laat studenten geen nieuwe IAM-rollen aanmaken. De bestaande `LabRole` beschikt over de benodigde S3- en SNS-rechten en wordt als parameter meegegeven aan het script.
-
-**Secrets Manager voor de database-wachtwoorden.** RDS-wachtwoorden worden niet als plaintext in de template of UserData opgeslagen, maar als een Secrets Manager-secret. EC2-instances halen het wachtwoord op via de AWS SDK bij de eerste start.
-
-## Uitrol
-
-**Vereisten:**
-- AWS CLI v2
-- PowerShell 7+
-- Een `aws.txt`-bestand in de assignment-map (zie formaat hieronder)
-
-**Formaat `aws.txt`:**
-```
-aws_access_key_id=ASIA...
-aws_secret_access_key=...
-aws_session_token=...
-```
-
-> Dit bestand staat in `.gitignore` en mag nooit gecommit worden.
-
-**Deployment uitvoeren:**
-```powershell
-.\Deploy-CloudShirt.ps1
-```
-
-Of met een vooraf ingestelde S3-bucketnaam:
-```powershell
-.\Deploy-CloudShirt.ps1 -BucketName "mijn-bucket-naam"
-```
-
-Het script voert de volgende stappen uit:
-
-1. Controleert of AWS CLI aanwezig is.
-2. Leest credentials uit `aws.txt` en valideert ze via STS.
-3. Vraagt om de S3-bucketnaam (of gebruikt een standaardnaam op basis van het account-ID).
-4. Deployt de stacks in de juiste volgorde: netwerk, EFS/ELK/RDS/S3, EC2, load balancer, ASG en Lambda.
-5. Uploadt config-bestanden en scripts naar S3.
-6. Toont de ALB-URL, target health en Lambda-naam na afloop.
-
-**Na de deployment:**
-
-Wacht 15-20 minuten totdat de EC2-instances de .NET-applicatie hebben gecompileerd en gestart. Open daarna de ALB-URL in een browser.
-
-**Omgeving opruimen:**
-```powershell
-.\Remove-CloudShirt.ps1
-```
+Voor de serverless Lambda hebben we de al bestaande `LabRole` van AWS Academy gebruikt, omdat je in de leeromgeving geen eigen IAM-rollen kunt aanmaken.
 
 ## Demo
 
@@ -87,38 +47,64 @@ Wacht 15-20 minuten totdat de EC2-instances de .NET-applicatie hebben gecompilee
 
 ![Succesvolle deployment via script](Script%20van%20assignment%201%20toont%20succesvolle%20deployment.png)
 
-Het deployment-script maakt alle CloudFormation-stacks succesvol aan en toont de ALB-URL.
+Het deploy-script rolt alle stacks succesvol uit en geeft de URL van de load balancer terug.
 
 ![CloudShirt applicatie draait](Cloudshirt%20assignment%201%20draait..png)
 
-De CloudShirt-applicatie is bereikbaar via de Load Balancer.
+De CloudShirt-applicatie is bereikbaar via de load balancer.
 
 ![Aankoop doen in de CloudShirt-app](Het%20doen%20van%20een%20aankoop%20in%20de%20CloudShirt-app.png)
 
 Een aankoop wordt afgerond in de winkelwagen.
 
+## Uitrollen
+
+Je hebt nodig: AWS CLI v2 en PowerShell 7+.
+
+Maak een `aws.txt`-bestand aan in deze map met de credentials van AWS Academy:
+
+```
+aws_access_key_id=ASIA...
+aws_secret_access_key=...
+aws_session_token=...
+```
+
+> Dit bestand staat in `.gitignore` en mag nooit gecommit worden.
+
+Start daarna het deploy-script:
+
+```powershell
+.\Deploy-CloudShirt.ps1
+```
+
+Het script vraagt om een naam voor de S3-bucket (of gebruikt een standaardnaam). Daarna rolt het alles automatisch uit in de juiste volgorde en uploadt het de configuratiebestanden naar S3.
+
+Wacht na afloop 15 tot 20 minuten. De webservers bouwen de .NET-applicatie nog op de achtergrond. Daarna is de app bereikbaar via de URL die het script toont.
+
+Opruimen:
+
+```powershell
+.\Remove-CloudShirt.ps1
+```
+
 ## Stacks
 
-| Stack | Inhoud |
+| Stack | Wat doet het |
 |---|---|
-| `cloudshirt-network` | VPC, subnets, internet gateway, NAT gateway, security groups |
-| `cloudshirt-efs` | Elastic File System voor gedeelde nginx-logs (REQ-03) |
-| `cloudshirt-elk` | ELK Stack v8.x: Elasticsearch, Logstash, Kibana (REQ-05) |
-| `cloudshirt-rds` | PostgreSQL 16 via Secrets Manager (REQ-04) |
-| `cloudshirt-s3` | S3-bucket voor RDS-exports en config-bestanden |
-| `cloudshirt-ec2` | Twee webservers in AZ-a en AZ-b met Filebeat (REQ-01, REQ-06) |
-| `cloudshirt-lb` | Application Load Balancer met sticky sessions (REQ-01) |
-| `cloudshirt-asg` | Auto Scaling Group met scheduled scaling (REQ-02) |
-| `cloudshirt-serverless` | Lambda export-monitor via EventBridge (REQ-08) |
+| `cloudshirt-network` | Netwerk: VPC, subnetten, gateways, security groups |
+| `cloudshirt-efs` | Gedeeld bestandssysteem voor logs |
+| `cloudshirt-elk` | Monitoring: Elasticsearch, Logstash en Kibana |
+| `cloudshirt-rds` | PostgreSQL-database via Secrets Manager |
+| `cloudshirt-s3` | S3-bucket voor exports en configuratiebestanden |
+| `cloudshirt-ec2` | Twee webservers in aparte beschikbaarheidszones |
+| `cloudshirt-lb` | Load balancer met sticky sessions |
+| `cloudshirt-asg` | Auto Scaling Group met geplande opschaling |
+| `cloudshirt-serverless` | Lambda die dagelijks controleert of de export is geslaagd |
 
 ## Aanbevelingen
 
-**HTTPS aanzetten.** Op dit moment draait de applicatie over HTTP. In een productieomgeving wordt een ACM-certificaat aan de ALB gekoppeld en wordt HTTP naar HTTPS geredirect.
+HTTPS staat nu niet aan. In een echte productieomgeving zou je een certificaat aan de load balancer koppelen.
 
-**ELK vervangen door CloudWatch + OpenSearch Serverless.** De huidige ELK-stack draait op een losse EC2-instance met handmatig beheer. CloudWatch Logs met een OpenSearch Serverless-domain is volledig beheerd, schaalt automatisch en vereist geen onderhoud.
+ELK vereist vrij veel handmatig beheer. Voor een productieomgeving zou je kijken naar een beheerde monitoringdienst zodat je dat onderhoud kwijt bent.
 
-**Secrets Manager roteren.** De database-wachtwoorden in Secrets Manager worden nu niet automatisch geroteerd. In productie wordt automatische rotatie ingeschakeld via een Lambda-rotator.
-
-**ALB access logs naar S3.** ALB-logs zijn nu niet opgeslagen. In productie worden access logs naar S3 geschreven voor auditing en troubleshooting.
-
-**Aparte staging-omgeving.** Er is nu geen staging-omgeving. Voor een productieomgeving worden twee aparte CloudFormation-stacks (staging en productie) ingericht met hetzelfde deploy-script maar andere parameterwaardes.
+De database-wachtwoorden worden nu niet automatisch gewisseld. Dat is voor een schoolopdracht prima, maar in productie zou je automatische rotatie aanzetten.

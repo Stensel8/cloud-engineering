@@ -1,49 +1,47 @@
 # Assignment 2: Docker in the Cloud
 
+## Over deze opdracht
+
+Dit was degene die we tot nu toe het beste voor elkaar hebben gekregen. Dit zal ook waarschijnlijk de demo gaan worden.
+
+De opdracht was om de applicatie te dockeriseren en in een Docker Swarm-cluster op AWS te draaien. Hiervoor hebben we een aparte variant van de applicatie gebruikt: [Stensel8/CloudShirt-Hugo](https://github.com/Stensel8/CloudShirt-Hugo). Dit is een lichtere versie die beter geschikt is voor containergebruik.
+
+De hele infrastructuur rolt uit via één PowerShell-script. De Buildserver bouwt de Docker-image, pusht die naar ECR en beheert het Swarm-cluster. De worker-servers starten automatisch op als Swarm-worker en koppelen aan de manager.
+
 ## Leerdoelen
 
-De module heeft de volgende leerdoelen geformuleerd:
+Het leerdoel was: een bestaande applicatie dockeriseren en op een geautomatiseerde manier uitrollen op een cloudinfrastructuur.
 
-- Een bestaande applicatie containeriseren en op een geautomatiseerde manier uitrollen op een cloudinfrastructuur.
-
-**Behaald.** De CloudShirt-Hugo applicatie is gedockeriseerd via een meertraps Dockerfile. De infrastructuur (netwerk, ECR, buildserver, ALB en worker-instances) wordt volledig via CloudFormation uitgerold met een PowerShell-script. De buildserver initialiseert Docker Swarm, bouwt de image en pusht die naar ECR. Worker-instances sluiten zich automatisch aan als Swarm-workers via een join-token uit SSM.
+**Behaald.** De applicatie draait als Docker-container in een Swarm-cluster, uitgerold via CloudFormation-templates en een deploy-script. De Buildserver doet nachtelijk automatisch een nieuwe build en pusht die naar ECR.
 
 ## Requirements
 
 | Requirement | Status | Bewijs |
 |---|---|---|
-| REQ-08: Applicatie is gedockeriseerd | Behaald | `Dockerfile` in Stensel8/Cloudshirt-Hugo |
-| REQ-09: Applicatie gebouwd op een Buildserver in het private subnet | Behaald | `cloudshirt-swarm-buildserver.yml` (private subnet, geen publiek IP) |
-| REQ-10: Docker Compose voor services en uitrol | Behaald | `docker-compose.yml` in Stensel8/Cloudshirt-Hugo |
-| REQ-11: Nightly builds op de Buildserver | Behaald | Cronjob om 02:00 UTC in `cloudshirt-swarm-buildserver.yml` voert `nightly-build.sh` uit |
-| REQ-12: Images worden gepusht naar AWS ECR | Behaald | Buildserver pusht image naar ECR via `docker push` in de nightly-build |
-| REQ-13: Buildserver als Swarm Manager | Behaald | Buildserver voert `docker swarm init` uit en slaat join-token op in SSM Parameter Store |
-| REQ-14: ASG-instances als Swarm Workers | Behaald | `cloudshirt-swarm-asg.yml` (worker-instances halen join-token op uit SSM en voeren `docker swarm join` uit) |
+| REQ-08: Applicatie is gedockeriseerd | Behaald | `Dockerfile` in Stensel8/CloudShirt-Hugo |
+| REQ-09: Applicatie gebouwd op een Buildserver in het private subnet | Behaald | `cloudshirt-swarm-buildserver.yml`: de Buildserver heeft geen publiek IP en is alleen intern bereikbaar |
+| REQ-10: Docker Compose voor services en uitrol | Behaald | `docker-compose.yml` in Stensel8/CloudShirt-Hugo |
+| REQ-11: Nachtelijke builds op de Buildserver | Behaald | Cronjob om 02:00 UTC voert `nightly-build.sh` uit |
+| REQ-12: Images worden gepusht naar ECR tijdens de nachtelijke build | Behaald | Buildserver pusht de image naar de ECR-repository na elke succesvolle build |
+| REQ-13: Buildserver als Swarm Manager | Behaald | Buildserver initialiseert de Swarm en slaat het join-token op in SSM |
+| REQ-14: ASG-instances als Swarm Workers | Behaald | Worker-instances halen het join-token op uit SSM en sluiten zich automatisch aan bij de Swarm |
 
-## Belangrijkste keuzes
+## Keuzes
 
-**Docker Swarm in plaats van Kubernetes.** De opdracht vraagt om een Swarm-opstelling. Swarm is eenvoudiger te beheren dan Kubernetes voor een kleine opstelling: minder configuratie, geen aparte control plane-nodes en native ondersteuning in Docker.
+De Buildserver staat in het private subnet en heeft geen publiek IP-adres. Je kunt er alleen via SSM Session Manager bij. Dit is veiliger dan een publieke server.
 
-**Buildserver in het private subnet.** De buildserver heeft geen publiek IP-adres. Beheer gaat via SSM Session Manager. Dit verkleint het aanvalsoppervlak.
+Het Swarm-join-token slaan we op in SSM Parameter Store. Zo hoeft het token niet hardcoded in de templates te staan en kunnen worker-servers het veilig ophalen bij het opstarten.
 
-**SSM Parameter Store voor het join-token.** Het Docker Swarm-join-token wordt na `docker swarm init` in SSM opgeslagen. Worker-instances halen het token op via de AWS SDK. Zo wordt het token nooit in plaintext in de template of userdata geschreven.
+ECR is de image-registry, gekoppeld aan dezelfde AWS-omgeving. Dat scheelt externe credentials en de images staan dicht bij de servers die ze ophalen.
 
-**ECR als image-registry.** Gekozen omdat ECR native in AWS is geintegreerd, geen externe credentials nodig heeft voor EC2-instances met de juiste IAM-rol, en de images in dezelfde regio staan als de workers (lage latency bij pulls).
+We gebruiken de `LabInstanceProfile` van AWS Academy voor de IAM-rechten. Eigen rollen aanmaken is niet mogelijk in de leeromgeving, maar de bestaande rol heeft genoeg rechten voor ECR, SSM en de load balancer.
 
-**LabInstanceProfile voor IAM.** AWS Academy staat geen aanmaak van nieuwe IAM-rollen toe. De vooraf aangemaakte `LabInstanceProfile` beschikt over voldoende rechten voor ECR, SSM en CloudWatch.
+## Uitrollen
 
-**ALB voor het externe eindpunt.** Een Application Load Balancer verdeelt verkeer over de Swarm-workers. Health checks op `/healthz` zorgen ervoor dat alleen gezonde instances verkeer ontvangen.
+Je hebt nodig: AWS CLI v2 en PowerShell 7+.
 
-**Deployment via PowerShell-script.** Hetzelfde patroon als Assignment 1: het script detecteert bestaande stacks, werkt ze bij of maakt ze opnieuw aan, en wacht op voltooiing voordat de volgende stap start.
+Maak een `aws.txt`-bestand aan met de credentials van AWS Academy:
 
-## Uitrol
-
-**Vereisten:**
-- AWS CLI v2
-- PowerShell 7+
-- Een `aws.txt`-bestand in de assignment-map (zie formaat hieronder)
-
-**Formaat `aws.txt`:**
 ```
 aws_access_key_id=ASIA...
 aws_secret_access_key=...
@@ -52,27 +50,17 @@ aws_session_token=...
 
 > Dit bestand staat in `.gitignore` en mag nooit gecommit worden.
 
-**Deployment uitvoeren:**
+Start het deploy-script:
+
 ```powershell
 .\Deploy-DockerSwarm.ps1
 ```
 
-Of met een vooraf ingesteld key pair (optioneel, SSH):
-```powershell
-.\Deploy-DockerSwarm.ps1 -KeyName "mijn-keypair"
-```
+Het script rolt de stacks uit in volgorde: netwerk, ECR, Buildserver, load balancer en workers. Na afloop toont het de URL van de load balancer.
 
-Het script voert de volgende stappen uit in volgorde:
+Wacht 2 tot 5 minuten totdat de workers de Swarm zijn ingetreden en de health checks groen worden.
 
-1. Netwerk: VPC, subnetten, NAT-gateway, security groups (`cloudshirt-swarm-network`).
-2. ECR: Docker image-registry (`cloudshirt-swarm-ecr`).
-3. Buildserver: Swarm Manager in het private subnet, initialiseert Swarm en voert de eerste build uit (`cloudshirt-swarm-buildserver`).
-4. Load Balancer: ALB met health checks (`cloudshirt-swarm-alb`).
-5. Workers: Auto Scaling Group die join-token uit SSM ophaalt en als Swarm-worker start (`cloudshirt-swarm-asg`).
-
-**Na de deployment:**
-
-Wacht 2-5 minuten totdat de worker-instances de Swarm zijn ingetreden en de ALB-health checks groen worden. Controleer de Swarm-status via SSM:
+Je kunt de status checken via SSM Session Manager op de Buildserver:
 
 ```bash
 docker node ls
@@ -80,7 +68,8 @@ docker service ls
 docker service ps cloudshirt_web
 ```
 
-**Omgeving opruimen:**
+Opruimen:
+
 ```powershell
 .\Remove-DockerSwarm.ps1
 ```
@@ -93,26 +82,22 @@ De CloudFormation-stacks zijn succesvol aangemaakt in AWS.
 
 ![Docker applicatie](Bewijs%20van%20uitvoering%20-%20Docker%20applicatie.png)
 
-De CloudShirt-Hugo applicatie draait als Docker Swarm-service bovenop de worker-instances.
+De CloudShirt-Hugo applicatie draait als Docker Swarm-service.
 
 ## Stacks
 
-| Stack | Inhoud |
+| Stack | Wat doet het |
 |---|---|
-| `cloudshirt-swarm-network` | VPC, subnetten, NAT-gateway, security groups |
+| `cloudshirt-swarm-network` | Netwerk: VPC, subnetten, NAT, security groups |
 | `cloudshirt-swarm-ecr` | ECR-repository voor Docker-images |
-| `cloudshirt-swarm-buildserver` | EC2-instance als Swarm Manager, nightly build, SSM-join-token |
-| `cloudshirt-swarm-alb` | Application Load Balancer met health checks |
+| `cloudshirt-swarm-buildserver` | Buildserver als Swarm Manager, doet nachtelijke builds |
+| `cloudshirt-swarm-alb` | Load balancer met health checks |
 | `cloudshirt-swarm-asg` | Auto Scaling Group als Swarm Workers |
 
 ## Aanbevelingen
 
-**Gescheiden build- en runtime-omgevingen.** Nu bouwt de buildserver ook de image voor zichzelf. In productie is een aparte CI/CD-pipeline (AWS CodePipeline of GitHub Actions) verstandiger zodat de buildserver geen productieverkeer verwerkt.
+Docker Swarm wordt niet meer actief doorontwikkeld. Voor een productieomgeving zou je eerder kijken naar Amazon ECS of Kubernetes.
 
-**Image-scanning in ECR inschakelen.** ECR ondersteunt automatische vulnerability scanning via Amazon Inspector. Dit is nu niet ingeschakeld. In productie wordt `scanOnPush: true` ingesteld op de repository.
+HTTPS staat nu niet aan op de load balancer. In productie zou je een certificaat koppelen.
 
-**Swarm vervangen door ECS of EKS.** Docker Swarm wordt niet meer actief ontwikkeld. Voor nieuwe productiesystemen is Amazon ECS (beheerd, eenvoudig) of EKS (Kubernetes, meer controle) een betere keuze.
-
-**HTTPS op de ALB.** Verkeer tussen client en ALB gaat nu over HTTP. In productie wordt een ACM-certificaat gekoppeld en wordt HTTP naar HTTPS geredirect.
-
-**Nightly build-notificaties.** Als de nightly build mislukt, is er nu geen melding. In productie wordt een CloudWatch Alarm of SNS-notificatie op de cron-jobuitvoer ingesteld.
+Als een nachtelijke build mislukt, is er nu geen melding. Een notificatie via e-mail of Slack bij een mislukte build zou handig zijn.
