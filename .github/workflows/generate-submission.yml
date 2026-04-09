@@ -40,7 +40,7 @@ jobs:
           OUT_DIR: output
 
       - name: Upload als workflow-artefact (ter controle)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: inlevering-${{ github.event.inputs.tag }}
           path: output/
