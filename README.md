@@ -15,6 +15,9 @@ Nederlands
 
 ---
 
+> [!WARNING]
+> **Deprecated vanaf juni 2026.** Deze repository bevat de uitwerking van de Cloud Engineering-specialisatie (jaar 3). De specialisatie is afgerond en deze repository wordt niet meer bijgehouden.
+
 # Cloud Engineering
 
 Deze repository wordt bijgehouden door [Sten Tijhuis](https://github.com/Stensel8) en [Wout Achterhuis](https://github.com/Hintenhaus04) en bevat de gedeelde modules van de HBO-specialisatie *Cloud Engineering* (Q3).

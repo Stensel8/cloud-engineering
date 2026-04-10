@@ -1,5 +1,8 @@
 # Cloud Automation Concepts
 
+> [!WARNING]
+> **Deprecated vanaf juni 2026.** Deze repository bevat de uitwerking van de Cloud Automation Concepts specialisatie (Cloud Engineering, jaar 3). De specialisatie is afgerond en deze repository wordt niet meer bijgehouden.
+
 > Schoolopdracht - Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
 > Duo: [Stensel8](https://github.com/Stensel8) & [Hintenhaus04](https://github.com/Hintenhaus04)
 
@@ -22,24 +25,27 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 > Deze module is direct afhankelijk van de Stensel8/CloudShirt repository. De implementatie en bewijsvoering worden bijgehouden in code, configuratie en documentatie in die repository:
 > https://github.com/stensel8/CloudShirt
 
-### Cross-referentie met CloudShirt
+### Gerelateerde repositories
 
-CloudShirt is de applicatiebasis voor deze module:
+Deze module maakt gebruik van twee zelfgemaakte applicaties die samen als bewijs dienen voor de assignments:
 
-- Oorsprong: geforkte/basisvariant welke oorspronkelijk is ontwikkeld door een docent.
-- Doorontwikkeling: omgebouwd en gemoderniseerd door mij (Stensel8). De applicatie is hierdoor inzetbaar voor zowel monolithische als gecontaineriseerde deployments, en voldoet hierdoor aan de eisen.
-- Toepassing: gebruikt in de drie assignments binnen Cloud Automation Concepts om requirements aantoonbaar af te vinken.
+| Repository | Rol in deze module |
+|------------|-------------------|
+| [Stensel8/CloudShirt](https://github.com/Stensel8/CloudShirt) | .NET-applicatie (monoliet + microservices); primaire basis voor Assignment 1 en 3 |
+| [Stensel8/CloudShirt-Hugo](https://github.com/Stensel8/CloudShirt-Hugo) | Go/Hugo-variant (alleen Docker); gebruikt in Assignment 2 (Docker Swarm) |
+| **[stensel8/cloud-engineering](https://github.com/stensel8/cloud-engineering/tree/main/cloud-automation-concepts)** *(deze repo)* | Schoolopdracht IaC - opdrachtkaders, CloudFormation/Terraform/Ansible en requirementstructuur |
 
-Samenhang tussen de repositories:
+Beide applicaties zijn gebouwd door **[Stensel8](https://github.com/Stensel8)** en **[Hintenhaus04](https://github.com/Hintenhaus04)** specifiek voor deze opdracht. Ze zijn geïnspireerd op de open-source [eShopOnWeb](https://github.com/dotnet-architecture/eShopOnWeb) demo van Microsoft en de [upstream van de docent](https://github.com/looking4ward/CloudShirt).
 
-- [CloudShirt](https://github.com/stensel8/CloudShirt): applicatie en deployment-uitwerking.
-- [cloud-automation-concepts](https://github.com/stensel8/cloud-engineering/tree/main/cloud-automation-concepts): opdrachtkaders en requirementstructuur.
+CloudShirt (.NET) staat als git submodule in [CloudShirt/](CloudShirt/), en volgt de `main` branch zodat de koppeling versievast blijft. Bijwerken:
 
-CloudShirt staat nu als git submodule in [CloudShirt/](CloudShirt/), en volgt de `main` branch zodat de koppeling expliciet en versievast blijft.
+```bash
+git submodule update --remote --merge
+```
 
-Bijwerken kan later met `git submodule update --remote --merge`, zodat de submodule naar de nieuwste `main`-commit opschuift.
+### Tooling
 
-Je zou dit kunnen zien als een platform en een applicatie, welke beide in hun eigen repository staan, maar elkaar onderling nodig hebben voor de uitvoering van de opdrachten. Dat is het idee van microservices.
+- Ontwikkeld met hulp van **[Claude Code](https://claude.ai/code)** (Anthropic) als AI-assistent bij de implementatie van beide applicaties.
 
 
 

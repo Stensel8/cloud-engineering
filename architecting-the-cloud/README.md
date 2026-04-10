@@ -1,5 +1,8 @@
 # Architecting the Cloud
 
+> [!WARNING]
+> **Deprecated vanaf juni 2026.** Deze repository bevat de uitwerking van de Cloud Engineering-specialisatie (jaar 3). De specialisatie is afgerond en deze repository wordt niet meer bijgehouden.
+
 > Schoolopdracht - Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
 > Duo: [Stensel8](https://github.com/Stensel8) & [Hintenhaus04](https://github.com/Hintenhaus04)
 
