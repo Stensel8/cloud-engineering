@@ -77,7 +77,7 @@ jobs:
 
       - name: PR-comment plaatsen of bijwerken
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           LINT_OUTPUT: ${{ steps.lint.outputs.output }}
           EXIT_CODE: ${{ steps.lint.outputs.exit_code }}

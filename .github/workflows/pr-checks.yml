@@ -87,7 +87,7 @@ jobs:
 
       - name: PR-comment plaatsen of bijwerken
         if: steps.check.outputs.found == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           FILES: ${{ steps.check.outputs.files }}
           ACTOR: ${{ github.event.pull_request.user.login }}
@@ -169,7 +169,7 @@ jobs:
     if: always()
     needs: [pr-title, media-format]
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         env:
           RESULT_PR_TITLE:     ${{ needs.pr-title.result }}
           RESULT_MEDIA_FORMAT: ${{ needs.media-format.result }}
@@ -200,7 +200,7 @@ jobs:
     name: Label op basis van commit type
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           script: |
             const typeLabels = ['feat', 'fix', 'content', 'docs', 'chore', 'refactor', 'style', 'ci', 'revert'];
