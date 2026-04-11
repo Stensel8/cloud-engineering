@@ -3,7 +3,7 @@
 > [!WARNING]
 > **Deprecated vanaf juni 2026.** Deze repository bevat de uitwerking van de Cloud Automation Concepts specialisatie (Cloud Engineering, jaar 3). De specialisatie is afgerond en deze repository wordt niet meer bijgehouden.
 
-> Schoolopdracht - Cloud Engineering-specialisatie, Jaar 3, Q3 (5 EC)
+> Schoolopdracht - Cloud Engineering-specialisatie
 > Duo: [Stensel8](https://github.com/Stensel8) & [Hintenhaus04](https://github.com/Hintenhaus04)
 
 ## Over deze module
@@ -21,9 +21,6 @@ Geautomatiseerde productie van infrastructuur (zero-touch deployment) met Infras
 > [!NOTE]
 > De weekopdrachten (Week 1-7) zijn vervallen als verplicht inleverpunt. Ze staan nog in de repo als referentie en oefenmateriaal, maar het portfolio bestaat momenteel uit de drie onderstaande assignments.
 
-> [!IMPORTANT]
-> Deze module is direct afhankelijk van de Stensel8/CloudShirt repository. De implementatie en bewijsvoering worden bijgehouden in code, configuratie en documentatie in die repository:
-> https://github.com/stensel8/CloudShirt
 
 ### Gerelateerde repositories
 
@@ -122,141 +119,135 @@ De weekopdrachten zijn vervallen als inleverpunt, maar het lesmateriaal en de oe
 | Week 4 | File Storage en Backup (AWS CLI, S3, EFS) | [Weekopdrachten (vervallen)/Week 4/](Weekopdrachten%20%28vervallen%29/Week%204/) |
 
 ---
-
 ## VS Code instellen
 
-### CloudFormation Linter
+<details>
+<summary>CloudFormation en YAML linting</summary>
 
-Het lesmateriaal van Saxion verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van aws-scripting-guy. **Installeer die niet.** De extensie is sinds 2022 niet meer onderhouden, herkent moderne CloudFormation-syntax niet en geeft foutieve of ontbrekende feedback.
+Het lesmateriaal van Saxion verwijst naar de extensie [cform-VSCode](https://github.com/aws-scripting-guy/cform-VSCode) van `aws-scripting‑guy`. **Installeer deze extensie niet.**  
+Deze is al sinds 2022 niet meer actief onderhouden, herkent moderne CloudFormation‑syntax niet goed en kan onjuiste of verwarrende waarschuwingen geven.
 
-Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter** (`kddejong.vscode-cfn-lint`). Deze extensie wordt actief onderhouden door AWS, kent alle huidige resource-typen en intrinsieke functies (`!Ref`, `!Sub`, `!GetAtt`, enzovoort), en toont fouten direct in de editor.
+Gebruik in plaats daarvan de officieel ondersteunde **CloudFormation Linter**‑extensie (`kddejong.vscode‑cfn‑lint`). Deze wordt actief beheerd en ondersteund door AWS, bevat de nieuwste resource‑typen en intrinsieke functies (`!Ref`, `!Sub`, `!GetAtt`, enzovoort) en laat fouten direct in de editor zien.
 
-**Stap 1: extensies installeren**
+### Stap 1: extensies installeren
 
-Bij het openen van deze repo toont VS Code automatisch een popup om de aanbevolen extensies te installeren. Klik op *Install*. Dit installeert:
+Bij het openen van deze repo toont VS Code meestal een popup om de “aanbevolen extensies” te installeren. Klik op **Install** om deze automatisch toe te voegen:
+- `kddejong.vscode-cfn-lint` (CloudFormation‑linter)
+- `redhat.vscode-yaml` (algemene YAML‑ondersteuning, vereist voor de linter)
 
-- `kddejong.vscode-cfn-lint` (CloudFormation Linter)
-- `redhat.vscode-yaml` (YAML-ondersteuning, vereist door de linter)
+### Stap 2: cfn-lint installeren
 
-**Stap 2: cfn-lint installeren**
-
-De extensie werkt samen met `cfn-lint`, dat je apart installeert via pip:
+De `kddejong.vscode‑cfn‑lint`‑extensie werkt samen met het `cfn‑lint`‑pakket, dat je via `pip` installeert:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Verifieer daarna:
+Verifieer dat het goed geïnstalleerd is:
 
 ```bash
 cfn-lint --version
 ```
 
-Herstart VS Code als de extensie cfn-lint na installatie niet automatisch detecteert.
+Als VS Code de `cfn‑lint`‑binary niet direct ziet, herstart de editor zodat de extensie het opnieuw kan detecteren.
 
----
-
-## AWS CLI installeren
-
-De opdrachten in deze module maken gebruik van de [AWS CLI](https://aws.amazon.com/cli/). Installeer deze eenmalig via onderstaande instructies.
+</details>
 
 <details>
-<summary>Linux</summary>
+<summary>AWS CLI installeren en configureren</summary>
+
+Voor de opdrachten in deze module is de [AWS CLI](https://aws.amazon.com/cli/) nodig. Installeer deze één keer, en gebruik daarna `aws configure` of een handmatige credentials‑configuratie.
+
+### Linux
+
+Afhankelijk van je distributie:
 
 ```bash
-# Arch
+# Arch Linux
 sudo pacman -S aws-cli-v2
 
 # Fedora
 sudo dnf install awscli2
 
-# Debian
+# Debian/Ubuntu
 sudo apt install awscli
 ```
 
-Verifieer de installatie:
+Controleer de installatie:
 
 ```bash
 aws --version
 ```
 
-Verwachte uitvoer (versienummers kunnen afwijken):
+Een typische uitvoer ziet er zo uit:
 
-```
+```text
 aws-cli/2.x.x Python/3.x.x Linux/x86_64
 ```
 
-Configureer daarna je AWS-credentials via `aws configure` (interactief, vraagt elk veld apart) of plak de volledige inhoud direct in `~/.aws/credentials` (sneller bij AWS Academy):
+Configureer daarna je AWS‑gebruiker:
 
-**Optie 1: via aws configure**
+- Interactief:  
+  ```bash
+  aws configure
+  ```  
+  Vul achtereenvolgens `Access Key ID`, `Secret Access Key`, `region` en `output format` in.
 
-```bash
-aws configure
-```
+- Directe file‑aanpak (aanbevolen bij AWS Academy):  
+  ```bash
+  nano ~/.aws/credentials
+  ```  
+  Plak de volledige credentials zoals AWS Academy ze aangeeft:
 
-Vul je Access Key ID, Secret Access Key, regio en uitvoerformaat in wanneer daarom gevraagd wordt.
-
-**Optie 2: direct in het bestand plakken (aanbevolen bij AWS Academy)**
-
-```bash
-nano ~/.aws/credentials
-```
-
-Plak de volledige credentials zoals AWS Academy ze aanlevert:
-
-```ini
-[default]
-aws_access_key_id=ASIA...
-aws_secret_access_key=...
-aws_session_token=...
-```
+  ```ini
+  [default]
+  aws_access_key_id=ASIA...
+  aws_secret_access_key=...
+  aws_session_token=...
+  ```
 
 > [!WARNING]
-> Bij gebruik van **AWS Academy (Learner Lab)** worden alle drie de credentials (access key, secret key én session token) bij elke nieuwe sessie opnieuw gegenereerd. Er is geen persistentie omdat dit een tijdelijke studentomgeving is. Herhaal bovenstaande stap na elke nieuwe sessie.
->
-> In een echte productieomgeving zijn de access key en secret key persistent en hoef je ze maar eenmalig in te stellen.
+> Bij gebruik van **AWS Academy (Learner Lab)** worden de `Access Key ID`, `Secret Access Key` en `aws_session_token` bij elke nieuwe sessie opnieuw gegenereerd. Er is geen persistente toegang; herhaal de credentials‑stap na elke nieuwe sessie.  
+> In productie‑omgevingen blijven de access key en secret key normaal gesproken statisch, zodat je ze maar één keer hoeft in te stellen.
 
 ![AWS credentials instellen na nieuwe sessie](../assets/aws-credentials-instellen.avif)
 
 </details>
 
 <details>
-<summary>Windows</summary>
+<summary>Windows (AWS CLI)</summary>
 
-Download en installeer via de [officiële MSI-installer](https://awscli.amazonaws.com/AWSCLIV2.msi), of via winget:
+Op Windows kun je de AWS CLI installeren via:
 
-```powershell
-winget install -e --id Amazon.AWSCLI
-```
+- De officiële MSI‑installer via de [AWS CLI‑downloadpagina](https://awscli.amazonaws.com/AWSCLIV2.msi), of
+- Via winget:
 
-Herstart de terminal na de installatie zodat `aws` beschikbaar is.
+  ```powershell
+  winget install -e --id Amazon.AWSCLI
+  ```
 
-Configureer daarna je AWS-credentials via `aws configure` (interactief, vraagt elk veld apart) of plak de volledige inhoud direct in `%USERPROFILE%\.aws\credentials` (sneller bij AWS Academy):
+Start na de installatie een nieuwe PowerShell of Command Prompt opnieuw om zeker te weten dat `aws` in de `PATH` staat.
 
-**Optie 1: via aws configure**
+Configureer je AWS‑gebruiker vervolgens:
 
-```powershell
-aws configure
-```
+- Interactief:
+  ```powershell
+  aws configure
+  ```  
+  Vul de gevraagde velden (`Access Key ID`, `Secret Access Key`, `region`, `output format`) in.
 
-Vul je Access Key ID, Secret Access Key, regio en uitvoerformaat in wanneer daarom gevraagd wordt.
+- Directe file‑aanpak (aanbevolen bij AWS Academy):  
+  Open het bestand `%USERPROFILE%\.aws\credentials` in een editor (bijv. Kladblok) en plak:
 
-**Optie 2: direct in het bestand plakken (aanbevolen bij AWS Academy)**
-
-Open `%USERPROFILE%\.aws\credentials` in Kladblok of een andere editor en plak de volledige credentials zoals AWS Academy ze aanlevert:
-
-```ini
-[default]
-aws_access_key_id=ASIA...
-aws_secret_access_key=...
-aws_session_token=...
-```
+  ```ini
+  [default]
+  aws_access_key_id=ASIA...
+  aws_secret_access_key=...
+  aws_session_token=...
+  ```
 
 > [!WARNING]
-> Bij gebruik van **AWS Academy (Learner Lab)** worden alle drie de credentials (access key, secret key én session token) bij elke nieuwe sessie opnieuw gegenereerd. Er is geen persistentie omdat dit een tijdelijke studentomgeving is. Herhaal bovenstaande stap na elke nieuwe sessie.
->
-> In een echte productieomgeving zijn de access key en secret key persistent en hoef je ze maar eenmalig in te stellen.
-
-![AWS credentials instellen na nieuwe sessie](../assets/aws-credentials-instellen.avif)
+> Bij **AWS Academy (Learner Lab)** veranderen alle drie de credentials bij elke sessie. Herhaal de configuratiestap na elke nieuwe sessie.  
+> In productie‑omgevingen zijn de access key en secret key in de regel blijvend, waardoor je ze maar één keer hoeft in te stellen.
 
 </details>
