@@ -74,7 +74,7 @@ Internet
 │  │        ALB              │                             │
 │  └────────────┬────────────┘                             │
 │               │                                          │
-│  ┌────────────▼────────────┐  ← private subnets           │
+│  ┌────────────▼────────────┐  ← private subnets          │
 │  │  ASG Worker Nodes (2-4) │  Docker Swarm Workers       │
 │  └────────────▲────────────┘                             │
 │               │ swarm join (SSM token)                   │
