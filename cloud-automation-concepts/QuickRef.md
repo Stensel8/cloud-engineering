@@ -238,3 +238,115 @@ aws ssm get-parameter \
   --query "Parameter.Value" \
   --output text
 ```
+
+---
+
+## Diagnose & Verbinding — Handige commando's
+
+### Verbinding maken met EC2
+
+```bash
+# Via SSH
+ssh -i ~/.ssh/my-key.pem ec2-user@<PUBLIC_IP>
+
+# Via SSM Session Manager (geen SSH/Bastion nodig)
+aws ssm start-session --target <INSTANCE_ID>
+
+# Instance ID opzoeken via naam-tag
+aws ec2 describe-instances \
+  --filters "Name=tag:Name,Values=buildserver" \
+  --query "Reservations[].Instances[].InstanceId" \
+  --output text
+```
+
+### Docker Swarm — status
+
+```bash
+# Nodes in de swarm (manager/worker + status)
+docker node ls
+
+# Alle services + replica-status
+docker service ls
+
+# Taken per service (op welke node draait wat?)
+docker service ps cloudshirt_web
+docker service ps cloudshirt_web --no-trunc   # volledige foutmelding tonen
+
+# Stack-overzicht
+docker stack ps cloudshirt          # alle taken
+docker stack services cloudshirt    # services in de stack
+
+# Containers op deze node
+docker ps                           # draaiende containers
+docker ps -a                        # inclusief gestopte containers
+```
+
+### Docker logs
+
+```bash
+# Logs van een service (swarm — streamt over alle replicas)
+docker service logs cloudshirt_web
+docker service logs --tail 100 -f cloudshirt_web   # laatste 100, live meevolgen
+
+# Logs van een specifieke container
+docker logs <CONTAINER_ID>
+docker logs --tail 50 -f <CONTAINER_ID>
+```
+
+### Systeemlogs (journalctl)
+
+```bash
+# Docker daemon logs
+journalctl -u docker -f
+
+# Specifieke service, live
+journalctl -u nginx --since today -f
+
+# Laatste N regels
+journalctl -n 100
+
+# Tijdsvenster
+journalctl --since "1 hour ago"
+
+# CloudFormation UserData output (bootstrap-fouten opsporen)
+journalctl -u cloud-init -f
+cat /var/log/cloud-init-output.log
+```
+
+### CloudFormation stack status
+
+```bash
+# Overzicht van alle stacks
+aws cloudformation list-stacks \
+  --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE ROLLBACK_COMPLETE \
+  --query "StackSummaries[].{Name:StackName,Status:StackStatus}" \
+  --output table
+
+# Events van een stack (debug bij CREATE_FAILED / ROLLBACK)
+aws cloudformation describe-stack-events \
+  --stack-name cloudshirt-ec2 \
+  --query "StackEvents[?contains(ResourceStatus,'FAILED')]" \
+  --output table
+
+# Outputs van een stack ophalen
+aws cloudformation describe-stacks \
+  --stack-name cloudshirt-network \
+  --query "Stacks[0].Outputs" \
+  --output table
+```
+
+### EC2 & ASG overzicht
+
+```bash
+# Alle draaiende instanties (naam, IP, state)
+aws ec2 describe-instances \
+  --filters "Name=instance-state-name,Values=running" \
+  --query "Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key=='Name']|[0].Value,IP:PrivateIpAddress,State:State.Name}" \
+  --output table
+
+# ASG — huidige capaciteit
+aws autoscaling describe-auto-scaling-groups \
+  --query "AutoScalingGroups[].{Name:AutoScalingGroupName,Min:MinSize,Max:MaxSize,Desired:DesiredCapacity,Running:length(Instances)}" \
+  --output table
+```
+
