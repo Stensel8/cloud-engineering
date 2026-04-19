@@ -90,6 +90,9 @@ Bouw voort op Assignment 1. Dockeriseer de applicatie en richt een Docker-infras
 
 > Bestanden in [Assignment 3 - Orchestration/](Assignment%203%20-%20Orchestration/)
 
+> [!WARNING]
+> **Niet afgerond.** Assignment 3 is een work in progress gebleven en niet binnen de beschikbare tijd werkend gekregen. De bestanden in de map zijn een onvoltooide poging; de requirements zijn niet aantoonbaar behaald. De onderstaande bewijstabel verwijst naar code die aanwezig is maar niet volledig getest of functioneel is.
+
 Bouw voort op Assignments 1 en 2. Gebruik Terraform en Ansible in een multi-cloud architectuur.
 
 **Deliverables:** Templates en scripts, plus een rapport (~3 pagina's) over leerdoelen, requirements, keuzes, uitrol en aanbevelingen.

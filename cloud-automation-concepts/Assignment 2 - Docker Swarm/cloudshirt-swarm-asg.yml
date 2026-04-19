@@ -9,17 +9,41 @@ Description: >
 # ---------------------------------------------------------------------------
 Parameters:
 
+  NetworkStackName:
+    Type: String
+    Default: cloudshirt-swarm-network
+    Description: >
+      Naam van de netwerk-stack waaruit subnetten en security group worden geïmporteerd.
+      Pas aan als de netwerk-stack een andere naam heeft.
+
+  AlbStackName:
+    Type: String
+    Default: cloudshirt-swarm-alb
+    Description: >
+      Naam van de ALB-stack waaruit de target group ARN wordt geïmporteerd.
+      Pas aan als de ALB-stack een andere naam heeft.
+
+  SsmPrefix:
+    Type: String
+    Default: /cloudshirt/swarm
+    Description: >
+      Prefix voor SSM Parameter Store sleutels. Moet overeenkomen met de waarde
+      in de Buildserver-stack zodat workers het token en IP kunnen vinden.
+      Voorbeeld: /cloudshirt/swarm → /cloudshirt/swarm/worker-token
+
   InstanceType:
     Type: String
     Default: t3.medium
     AllowedValues: [t3.small, t3.medium, t3.large]
     # t3.medium (4 GB) als standaard: geeft voldoende ruimte voor Docker containers
-    # naast het Swarm gossip-verkeer en ECR image pulls.
+    # naast het Swarm verkeer en ECR image pulls.
     Description: EC2 instance type voor worker nodes
 
   AmiId:
     Type: AWS::EC2::Image::Id
     Default: ami-0190ba1cb5ab4e9e8
+    # Dezelfde AMI als de Buildserver; apart parameter zodat workers en manager
+    # onafhankelijk naar een andere AMI kunnen worden bijgewerkt.
     Description: Amazon Linux 2023 AMI (64-bit x86)
 
   MinInstances:
@@ -56,7 +80,7 @@ Resources:
           HttpTokens: required
           HttpPutResponseHopLimit: 1
         SecurityGroupIds:
-          - !ImportValue cloudshirt-swarm-network:WorkerSecurityGroup
+          - Fn::ImportValue: !Sub "${NetworkStackName}:WorkerSecurityGroup"
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -85,27 +109,48 @@ Resources:
               -o /usr/local/lib/docker/cli-plugins/docker-compose
             chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-            # Wacht tot Docker klaar is en de Buildserver de SSM-parameters heeft opgeslagen
-            sleep 15
-
             # Inloggen bij ECR
             aws ecr get-login-password --region ${AWS::Region} | \
               docker login --username AWS --password-stdin \
               ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
 
-            # ── Swarm join-token en manager-IP ophalen uit SSM (REQ-14) ──────────
-            MANAGER_IP=$(aws ssm get-parameter \
-              --name "/cloudshirt/swarm/manager-ip" \
-              --query "Parameter.Value" --output text --region ${AWS::Region})
+            # ── Wacht op SSM-parameters van de Buildserver (REQ-14) ───────────────
+            # De Buildserver schrijft het token en IP pas na swarm init, wat meerdere
+            # minuten duurt. sleep 15 is onvoldoende; retry-lus wacht tot 10 minuten.
+            SSM_PREFIX="${SsmPrefix}"
+            MAX_WAIT=600
+            INTERVAL=15
+            ELAPSED=0
+            MANAGER_IP=""
+            WORKER_TOKEN=""
 
-            WORKER_TOKEN=$(aws ssm get-parameter \
-              --name "/cloudshirt/swarm/worker-token" \
-              --with-decryption \
-              --query "Parameter.Value" --output text --region ${AWS::Region})
+            while [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
+              MANAGER_IP=$(aws ssm get-parameter \
+                --name "$SSM_PREFIX/manager-ip" \
+                --query "Parameter.Value" --output text --region ${AWS::Region} 2>/dev/null || true)
+
+              WORKER_TOKEN=$(aws ssm get-parameter \
+                --name "$SSM_PREFIX/worker-token" \
+                --with-decryption \
+                --query "Parameter.Value" --output text --region ${AWS::Region} 2>/dev/null || true)
+
+              if [ -n "$MANAGER_IP" ] && [ -n "$WORKER_TOKEN" ]; then
+                echo "[UserData] SSM-parameters beschikbaar: manager=$MANAGER_IP"
+                break
+              fi
+
+              echo "[UserData] SSM-parameters nog niet beschikbaar; wacht $INTERVAL s ($ELAPSED s verstreken)..."
+              sleep "$INTERVAL"
+              ELAPSED=$((ELAPSED + INTERVAL))
+            done
+
+            if [ -z "$MANAGER_IP" ] || [ -z "$WORKER_TOKEN" ]; then
+              echo "[UserData] FOUT: SSM-parameters niet beschikbaar binnen $MAX_WAIT s. Buildserver mogelijk niet klaar."
+              exit 1
+            fi
 
             # Joinen bij de Swarm als worker node (REQ-14)
             docker swarm join --token "$WORKER_TOKEN" "$MANAGER_IP:2377"
-
             echo "[UserData] Worker gejoined aan Swarm op $MANAGER_IP"
 
   # ── Auto Scaling Group (REQ-14: ASG-instances als Swarm Workers) ─────────
@@ -121,12 +166,14 @@ Resources:
         LaunchTemplateId: !Ref WorkerLaunchTemplate
         Version: !GetAtt WorkerLaunchTemplate.LatestVersionNumber
       VPCZoneIdentifier:
-        - !ImportValue cloudshirt-swarm-network:PrivateSubnetA
-        - !ImportValue cloudshirt-swarm-network:PrivateSubnetB
+        - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateSubnetA"
+        - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateSubnetB"
       TargetGroupARNs:
-        - !ImportValue cloudshirt-swarm-alb:TargetGroupArn
+        - Fn::ImportValue: !Sub "${AlbStackName}:TargetGroupArn"
       HealthCheckType: ELB
-      HealthCheckGracePeriod: 300
+      # Grace period gelijk aan de SSM-wacht timeout (600s) zodat de ASG een instance
+      # niet verwijdert voordat de worker de Swarm heeft gejoint en verkeer kan ontvangen.
+      HealthCheckGracePeriod: 600
       Tags:
         - Key: Name
           Value: CloudShirt-Worker

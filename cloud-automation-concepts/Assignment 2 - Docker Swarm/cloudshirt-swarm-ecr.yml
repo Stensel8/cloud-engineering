@@ -29,7 +29,9 @@ Resources:
             comment: "KMS-encryptie niet beschikbaar in AWS Academy student lab"
     Properties:
       RepositoryName: !Ref ECRRepoName
-      ImageTagMutability: IMMUTABLE
+      # MUTABLE zodat de nightly build de :latest tag kan overschrijven.
+      # Datumtags (bijv. :20240101) zijn uniek per build en worden nooit hergebruikt.
+      ImageTagMutability: MUTABLE
       ImageScanningConfiguration:
         ScanOnPush: true
       # Bewaar maximaal 10 images om kosten te beperken
@@ -63,7 +65,8 @@ Resources:
             comment: "KMS-encryptie niet beschikbaar in AWS Academy student lab"
     Properties:
       RepositoryName: !Sub "${ECRRepoName}-api"
-      ImageTagMutability: IMMUTABLE
+      # MUTABLE om dezelfde reden als de web-repo hierboven
+      ImageTagMutability: MUTABLE
       ImageScanningConfiguration:
         ScanOnPush: true
       # Bewaar maximaal 10 images om kosten te beperken
@@ -100,12 +103,14 @@ Outputs:
 
   ECRRepositoryURI:
     Description: Volledige URI van de web ECR-repository
-    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}"
+    # !GetAtt geeft de officiële AWS-URI terug; handmatig construeren met AccountId/Region
+    # zou breken als het URI-formaat ooit wijzigt.
+    Value: !GetAtt ECRRepository.RepositoryUri
     Export:
       Name: !Sub "${AWS::StackName}:ECRRepositoryURI"
 
   ECRApiRepositoryURI:
     Description: Volledige URI van de API ECR-repository
-    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}-api"
+    Value: !GetAtt ECRRepositoryApi.RepositoryUri
     Export:
       Name: !Sub "${AWS::StackName}:ECRApiRepositoryURI"

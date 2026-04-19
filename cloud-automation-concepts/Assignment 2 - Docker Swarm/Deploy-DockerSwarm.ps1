@@ -137,7 +137,12 @@ function Invoke-StackDeployment {
         [Parameter(Mandatory)][string]$StackName,
 
         # Pad naar het CloudFormation-templatebestand
-        [Parameter(Mandatory)][string]$TemplateFile
+        [Parameter(Mandatory)][string]$TemplateFile,
+
+        # Optionele CloudFormation parameters in het formaat "Key=Value"
+        # Hiermee worden de stack-naam parameters doorgegeven zodat !ImportValue
+        # ook werkt als stacks een andere naam hebben dan de default.
+        [string[]]$Parameters = @()
     )
 
     Write-Output ""
@@ -153,6 +158,18 @@ function Invoke-StackDeployment {
     if (-not (Test-Path $ResolvedTemplateFile)) {
         Write-Output "    FOUT: templatebestand niet gevonden: $ResolvedTemplateFile"
         exit 1
+    }
+
+    # create-stack/update-stack verwachten --parameters ParameterKey=K,ParameterValue=V
+    # Converteer de "Key=Value" strings naar het vereiste formaat.
+    $ParamArgs = if ($Parameters.Count -gt 0) {
+        $Converted = $Parameters | ForEach-Object {
+            $Parts = $_ -split '=', 2
+            "ParameterKey=$($Parts[0]),ParameterValue=$($Parts[1])"
+        }
+        @("--parameters") + $Converted
+    } else {
+        @()
     }
 
     # Bepaal of de stack al bestaat en in welke status hij staat
@@ -182,7 +199,8 @@ function Invoke-StackDeployment {
         $UpdateOutput = aws cloudformation update-stack `
             --stack-name $StackName `
             --template-body "file://$ResolvedTemplateFile" `
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND 2>&1
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND `
+            @ParamArgs 2>&1
 
         if ($LASTEXITCODE -eq 0) {
             Write-Output "    Wachten op update..."
@@ -202,7 +220,8 @@ function Invoke-StackDeployment {
         aws cloudformation create-stack `
             --stack-name $StackName `
             --template-body "file://$ResolvedTemplateFile" `
-            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND
+            --capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND `
+            @ParamArgs
 
         if ($LASTEXITCODE -ne 0) {
             Write-Output "    FOUT: aanmaken van stack mislukt."
@@ -225,32 +244,57 @@ function Invoke-StackDeployment {
 # De volgorde is belangrijk: latere stacks importeren outputs van eerdere
 # stacks via !ImportValue. Een stack die nog niet bestaat kan niet worden
 # geimporteerd.
+#
+# Stack-namen worden als parameter doorgegeven aan elke stack zodat de
+# templates niet afhankelijk zijn van hardcoded namen. Zo werkt alles ook
+# correct als de stacks ooit hernoemd worden.
 # ---------------------------------------------------------------------------
 Write-Section "Deployment starten"
+
+$NetworkStack     = "cloudshirt-swarm-network"
+$EcrStack         = "cloudshirt-swarm-ecr"
+$BuildserverStack = "cloudshirt-swarm-buildserver"
+$AlbStack         = "cloudshirt-swarm-alb"
+$AsgStack         = "cloudshirt-swarm-asg"
+
+# SSM-prefix voor Swarm join-token en manager-IP.
+# Buildserver en ASG moeten exact hetzelfde prefix gebruiken; hier centraal beheerd.
+$SsmPrefix        = "/cloudshirt/swarm"
 
 # 1. Netwerk-basisinfrastructuur
 #    Alle andere stacks zijn hiervan afhankelijk.
 Write-Output "Stap 1/5 - Netwerk"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-network" -TemplateFile ".\cloudshirt-swarm-network.yml"
+Invoke-StackDeployment -StackName $NetworkStack -TemplateFile ".\cloudshirt-swarm-network.yml"
 
 # 2. ECR-repository voor Docker-images
 Write-Output "Stap 2/5 - ECR"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-ecr" -TemplateFile ".\cloudshirt-swarm-ecr.yml"
+Invoke-StackDeployment -StackName $EcrStack -TemplateFile ".\cloudshirt-swarm-ecr.yml"
 
 # 3. Buildserver (Swarm Manager)
 #    Gebruikt de vooraf aangemaakte LabInstanceProfile van AWS Academy.
 #    Initialiseert de Swarm en slaat join-token op in SSM.
 Write-Output "Stap 3/5 - Buildserver (Swarm Manager)"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-buildserver" -TemplateFile ".\cloudshirt-swarm-buildserver.yml"
+Invoke-StackDeployment -StackName $BuildserverStack -TemplateFile ".\cloudshirt-swarm-buildserver.yml" `
+    -Parameters @(
+        "NetworkStackName=$NetworkStack",
+        "EcrStackName=$EcrStack",
+        "SsmPrefix=$SsmPrefix"
+    )
 
 # 4. Application Load Balancer
 Write-Output "Stap 4/5 - Application Load Balancer"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-alb" -TemplateFile ".\cloudshirt-swarm-alb.yml"
+Invoke-StackDeployment -StackName $AlbStack -TemplateFile ".\cloudshirt-swarm-alb.yml" `
+    -Parameters @("NetworkStackName=$NetworkStack")
 
 # 5. Auto Scaling Group (Swarm Workers)
 #    Afhankelijk van ALB target group en SSM-parameters van de Buildserver.
 Write-Output "Stap 5/5 - Auto Scaling Group (Swarm Workers)"
-Invoke-StackDeployment -StackName "cloudshirt-swarm-asg" -TemplateFile ".\cloudshirt-swarm-asg.yml"
+Invoke-StackDeployment -StackName $AsgStack -TemplateFile ".\cloudshirt-swarm-asg.yml" `
+    -Parameters @(
+        "NetworkStackName=$NetworkStack",
+        "AlbStackName=$AlbStack",
+        "SsmPrefix=$SsmPrefix"
+    )
 
 # ---------------------------------------------------------------------------
 # Klaar
@@ -270,7 +314,7 @@ Write-Output ""
 
 # ALB-URL ophalen en tonen
 $AlbDns = aws cloudformation describe-stacks `
-    --stack-name "cloudshirt-swarm-alb" `
+    --stack-name $AlbStack `
     --query "Stacks[0].Outputs[?OutputKey=='ALBDNSName'].OutputValue" `
     --output text 2>$null
 
@@ -279,16 +323,45 @@ if (-not [string]::IsNullOrWhiteSpace($AlbDns)) {
     Write-Output "  http://$AlbDns"
 } else {
     Write-Output "Haal de ALB-URL op via:"
-    Write-Output "  aws cloudformation describe-stacks --stack-name cloudshirt-swarm-alb --query 'Stacks[0].Outputs'"
+    Write-Output "  aws cloudformation describe-stacks --stack-name $AlbStack --query 'Stacks[0].Outputs'"
 }
 
-# ALB target health tonen voor snelle troubleshooting
+# Wacht op ALB target health: poll tot minimaal 1 target 'healthy' is of timeout bereikt
 $TargetGroupArn = aws cloudformation describe-stacks `
-    --stack-name "cloudshirt-swarm-alb" `
+    --stack-name $AlbStack `
     --query "Stacks[0].Outputs[?OutputKey=='TargetGroupArn'].OutputValue" `
     --output text 2>$null
 
 if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
+    Write-Output ""
+    Write-Output "Wachten op ALB health checks (workers joinen Swarm en starten containers)..."
+    Write-Output "Dit kan 5-10 minuten duren."
+
+    $MaxWaitSeconds = 900
+    $PollInterval   = 15
+    $Elapsed        = 0
+    $HealthyCount   = 0
+
+    while ($Elapsed -lt $MaxWaitSeconds) {
+        $HealthyCount = aws elbv2 describe-target-health `
+            --target-group-arn $TargetGroupArn `
+            --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" `
+            --output text 2>$null
+
+        if ($HealthyCount -gt 0) {
+            Write-Output "  $HealthyCount target(s) healthy na $Elapsed s."
+            break
+        }
+
+        Write-Output "  Nog geen healthy targets ($Elapsed s verstreken)..."
+        Start-Sleep -Seconds $PollInterval
+        $Elapsed += $PollInterval
+    }
+
+    if ($HealthyCount -eq 0) {
+        Write-Output "  WAARSCHUWING: geen healthy targets binnen $MaxWaitSeconds s. Controleer de workers via SSM."
+    }
+
     Write-Output ""
     Write-Output "ALB target health:"
     aws elbv2 describe-target-health `
@@ -299,8 +372,7 @@ if (-not [string]::IsNullOrWhiteSpace($TargetGroupArn)) {
 
 Write-Output ""
 Write-Output "Volgende stappen:"
-Write-Output "  1. Wacht 2-5 minuten tot workers Ready zijn en ALB health checks groen worden."
-Write-Output "  2. Verbind via SSM Session Manager met de Buildserver en voer uit:"
+Write-Output "  1. Verbind via SSM Session Manager met de Buildserver en voer uit:"
 Write-Output "       docker node ls"
-Write-Output "  3. Controleer of de service draait:"
+Write-Output "  2. Controleer of de service draait:"
 Write-Output "       docker service ls && docker service ps cloudshirt_web"
